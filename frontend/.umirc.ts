@@ -7,4 +7,5 @@ export default defineConfig({
   ],
   npmClient: 'npm',
   utoopack: {},
+  model: {},
 });

@@ -10,8 +10,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.2",
-    "antd": "^6.3.7",
-    "umi": "^4.6.51"
+    "@umijs/max": "^4.6.53",
+    "@umijs/plugins": "^4.6.53",
+    "antd": "^6.3.7"
   },
   "devDependencies": {
     "@types/react": "^18.0.33",
