@@ -1,0 +1,173 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex"]
+}
+
+// ================= ENUMS =================
+enum UserRole {
+  student
+  teacher
+  admin
+}
+
+enum PostStatus {
+  active
+  hidden
+  deleted
+}
+
+enum TargetType {
+  post
+  comment
+}
+
+enum NotificationType {
+  comment
+  reply
+  vote
+  system
+}
+
+// ================= MODELS =================
+
+model User {
+  id                 Int             @id @default(autoincrement())
+  email              String          @unique @db.VarChar(255)
+  username           String          @unique @db.VarChar(100)
+  password_hash      String          @db.VarChar(255)
+  full_name          String?         @db.VarChar(150)
+  avatar_url         String?         @db.VarChar(255)
+  role               UserRole        @default(student)
+  is_active          Boolean         @default(true)
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  // Quan hệ (Relations)
+  posts              Post[]
+  comments           Comment[]
+  votes              Vote[]
+  notifications      Notification[]  @relation("UserNotifications")
+  sent_notifications Notification[]  @relation("SenderNotifications")
+
+  @@map("users")
+}
+
+model Post {
+  id                  Int             @id @default(autoincrement())
+  author_id           Int
+  title               String          @db.VarChar(255)
+  slug                String          @unique @db.VarChar(255)
+  content             String          @db.Text
+  status              PostStatus      @default(active)
+  view_count          Int             @default(0)
+  accepted_comment_id Int?            @unique // Lời giải được chấp nhận (1-1)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  deleted_at          DateTime?
+
+  // Quan hệ (Relations)
+  author              User            @relation(fields: [author_id], references: [id])
+  accepted_comment    Comment?        @relation("AcceptedComment", fields: [accepted_comment_id], references: [id], onDelete: SetNull)
+  comments            Comment[]       @relation("PostComments")
+  post_tags           PostTag[]
+  notifications       Notification[]
+
+  // Đánh chỉ mục tối ưu tìm kiếm
+  @@fulltext([title, content])
+  @@index([status, deleted_at])
+  @@map("posts")
+}
+
+model Comment {
+  id                  Int             @id @default(autoincrement())
+  post_id             Int
+  author_id           Int
+  parent_id           Int?
+  content             String          @db.Text
+  is_accepted         Boolean         @default(false)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  deleted_at          DateTime?
+
+  // Quan hệ (Relations)
+  post                Post            @relation("PostComments", fields: [post_id], references: [id], onDelete: Cascade)
+  author              User            @relation(fields: [author_id], references: [id])
+  accepted_for_post   Post?           @relation("AcceptedComment")
+  
+  // Trả lời đa cấp (Self-referencing)
+  parent              Comment?        @relation("ReplyToComment", fields: [parent_id], references: [id], onDelete: Cascade)
+  replies             Comment[]       @relation("ReplyToComment")
+  notifications       Notification[]
+
+  @@index([post_id])
+  @@index([parent_id])
+  @@map("comments")
+}
+
+model Tag {
+  id                  Int             @id @default(autoincrement())
+  name                String          @unique @db.VarChar(100)
+  slug                String          @unique @db.VarChar(100)
+  description         String?         @db.VarChar(255)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  post_tags           PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  post_id             Int
+  tag_id              Int
+
+  post                Post            @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  tag                 Tag             @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([post_id, tag_id])
+  @@index([tag_id])
+  @@map("post_tags")
+}
+
+model Vote {
+  id                  Int             @id @default(autoincrement())
+  user_id             Int
+  target_id           Int
+  target_type         TargetType
+  vote_value          Int             // 1 hoặc -1
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  user                User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Unique Index chặn vote trùng
+  @@unique([user_id, target_id, target_type])
+  @@index([target_id, target_type])
+  @@map("votes")
+}
+
+model Notification {
+  id                  Int             @id @default(autoincrement())
+  user_id             Int
+  sender_id           Int?
+  post_id             Int?
+  comment_id          Int?
+  type                NotificationType
+  content             String          @db.VarChar(255)
+  is_read             Boolean         @default(false)
+  created_at          DateTime        @default(now())
+
+  // Quan hệ (Relations)
+  user                User            @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+  sender              User?           @relation("SenderNotifications", fields: [sender_id], references: [id], onDelete: SetNull)
+  post                Post?           @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  comment             Comment?        @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@map("notifications")
+}
