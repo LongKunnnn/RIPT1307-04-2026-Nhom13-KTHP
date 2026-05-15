@@ -1,0 +1,70 @@
+@text: #0f172a;
+@muted: #64748b;
+@border: rgba(37, 99, 235, 0.18);
+@link: #2563eb;
+
+.page {
+  min-height: 100%;
+  padding: 16px clamp(10px, 2vw, 24px) 40px;
+  background: linear-gradient(165deg, #93c5fd 0%, #bfdbfe 12%, #dbeafe 32%, #eff6ff 58%, #f8fafc 100%);
+  color: @text;
+}
+
+.inner {
+  width: 100%;
+  max-width: min(920px, calc(100vw - 24px));
+  margin: 0 auto;
+}
+
+.head {
+  margin-bottom: 16px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: @link;
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.title {
+  margin: 0 !important;
+  font-weight: 700 !important;
+}
+
+.sub {
+  display: block;
+  margin-top: 6px;
+  color: @muted;
+  font-size: 14px;
+}
+
+.card {
+  background: linear-gradient(175deg, #ffffff 0%, #f8fcff 55%, #faf8ff 100%);
+  border: 1px solid @border;
+  border-radius: 12px;
+  padding: 20px 20px 8px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 13px;
+  color: @muted;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+}

@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 32%, #ffffff 100%);
+  background: linear-gradient(165deg, #bfdbfe 0%, #dbeafe 20%, #e0f2fe 45%, #eff6ff 75%, #f1f5f9 100%);
 }
 
 .header {
@@ -11,15 +11,16 @@
   z-index: 100;
   height: 64px;
   line-height: 64px;
-  padding: 0 20px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  padding: 0 clamp(12px, 2.5vw, 28px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(239, 246, 255, 0.95) 100%);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.18);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .headerInner {
-  max-width: 1200px;
+  width: 100%;
+  max-width: min(1680px, calc(100vw - 32px));
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -31,25 +32,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #0f172a;
+  color: #0f1419;
   text-decoration: none;
   flex-shrink: 0;
 
   &:hover {
-    color: #1d4ed8;
+    color: #2563eb;
   }
 }
 
 .brandIcon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
 }
 
 .brandText {
@@ -64,7 +66,7 @@
 
   small {
     font-size: 11px;
-    color: #64748b;
+    color: #536471;
     font-weight: 500;
   }
 }
@@ -81,14 +83,15 @@
 
 .navLink {
   padding: 6px 12px;
-  border-radius: 8px;
-  color: #475569;
+  border-radius: 999px;
+  color: #0f1419;
   text-decoration: none;
   font-size: 14px;
+  font-weight: 500;
   transition: background 0.15s, color 0.15s;
 
   &:hover {
-    background: #eff6ff;
+    background: rgba(219, 234, 254, 0.9);
     color: #1d4ed8;
   }
 }
@@ -97,19 +100,24 @@
   flex: 1;
   min-width: 0;
   max-width: 420px;
-  border-radius: 10px !important;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+  border: 1px solid rgba(37, 99, 235, 0.2) !important;
 
   &:hover,
   &:focus-within {
-    border-color: #93c5fd !important;
+    border-color: #2563eb !important;
     background: #fff !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22) !important;
+  }
+
+  @media (min-width: 1200px) {
+    max-width: min(560px, 38vw);
   }
 }
 
 .searchIcon {
-  color: #94a3b8;
+  color: #536471;
 }
 
 .auth {
@@ -117,7 +125,8 @@
 }
 
 .loginBtn {
-  color: #475569 !important;
+  color: #0f1419 !important;
+  font-weight: 600 !important;
 }
 
 .content {
@@ -125,21 +134,23 @@
 }
 
 .footer {
-  background: #0f172a;
-  color: #94a3b8;
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 40%, #f8fafc 100%);
+  color: #475569;
   padding: 32px 24px 28px;
   margin-top: auto;
+  border-top: 1px solid rgba(37, 99, 235, 0.12);
 }
 
 .footerInner {
-  max-width: 1200px;
+  width: 100%;
+  max-width: min(1680px, calc(100vw - 32px));
   margin: 0 auto;
   text-align: center;
   font-size: 13px;
   line-height: 1.7;
 
   strong {
-    color: #e2e8f0;
+    color: #0f172a;
   }
 }
 
@@ -147,12 +158,13 @@
   margin-top: 10px;
 
   a {
-    color: #cbd5e1;
+    color: #2563eb;
     margin: 0 12px;
     text-decoration: none;
 
     &:hover {
-      color: #fff;
+      text-decoration: underline;
+      color: #1d4ed8;
     }
   }
 }
@@ -160,7 +172,7 @@
 .footerCopy {
   margin-top: 14px;
   font-size: 12px;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 @media (max-width: 768px) {

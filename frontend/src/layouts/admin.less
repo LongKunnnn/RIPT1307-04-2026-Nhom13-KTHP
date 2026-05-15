@@ -1,0 +1,53 @@
+.adminRoot {
+  min-height: 100vh;
+}
+
+.sider {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 40%, #172554 100%) !important;
+
+  :global(.ant-layout-sider-children) {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.logo {
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.menu {
+  flex: 1;
+  background: transparent !important;
+  border-inline-end: none !important;
+
+  :global(.ant-menu-item),
+  :global(.ant-menu-submenu-title) {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+
+  :global(.ant-menu-item-selected) {
+    background: rgba(255, 255, 255, 0.15) !important;
+  }
+}
+
+.header {
+  background: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.content {
+  margin: 24px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  min-height: calc(100vh - 112px);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
