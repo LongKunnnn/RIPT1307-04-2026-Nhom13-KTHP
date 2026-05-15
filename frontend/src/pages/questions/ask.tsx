@@ -74,7 +74,7 @@ export default function AskQuestionPage() {
             ]}
             style={{ marginBottom: 12 }}
           />
-          <Link to={`${ROUTES.home}#feed`} className={styles.back}>
+          <Link to={ROUTES.myQuestions('authored')} className={styles.back}>
             <ArrowLeftOutlined /> Quay lại danh sách câu hỏi
           </Link>
           <Title level={2} className={styles.title}>

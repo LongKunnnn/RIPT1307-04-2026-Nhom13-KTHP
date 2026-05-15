@@ -1,6 +1,9 @@
 import type { CreatePostInput, PaginatedResult, Post } from '@/types';
 import { getComments, getPosts, newId, setComments, setPosts } from '@/services/mock/db';
 import { scanContent, isPubliclyVisible } from '@/services/moderation/contentScan';
+import { followService } from '@/services/posts/followService';
+
+export type PostFeedSort = 'newest' | 'active' | 'bounty' | 'unanswered';
 
 export interface ListPostsQuery {
   page?: number;
@@ -8,6 +11,46 @@ export interface ListPostsQuery {
   search?: string;
   tag?: string;
   faculty?: string;
+  sort?: PostFeedSort;
+}
+
+export interface ForumStats {
+  questionCount: number;
+  answerCount: number;
+  tagCount: number;
+}
+
+export interface TagWithCount {
+  name: string;
+  count: number;
+}
+
+function lastActivityAt(postId: string, postCreatedAt: string): number {
+  const base = new Date(postCreatedAt).getTime();
+  const fromComments = getComments()
+    .filter((c) => c.postId === postId)
+    .map((c) => new Date(c.createdAt).getTime());
+  return fromComments.length ? Math.max(base, ...fromComments) : base;
+}
+
+function sortPosts(items: Post[], sort: PostFeedSort): Post[] {
+  const list = [...items];
+  switch (sort) {
+    case 'active':
+      return list.sort(
+        (a, b) => lastActivityAt(b.id, b.createdAt) - lastActivityAt(a.id, a.createdAt),
+      );
+    case 'bounty':
+      return list
+        .filter((p) => (p.bounty ?? 0) > 0)
+        .sort((a, b) => (b.bounty ?? 0) - (a.bounty ?? 0));
+    case 'unanswered':
+      return list
+        .filter((p) => p.answerCount === 0)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    default:
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
 }
 
 function makeExcerpt(body: string, max = 180) {
@@ -15,13 +58,17 @@ function makeExcerpt(body: string, max = 180) {
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
 
+function paginate(items: Post[], query: ListPostsQuery): PaginatedResult<Post> {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 10;
+  const total = items.length;
+  const start = (page - 1) * pageSize;
+  return { items: items.slice(start, start + pageSize), total, page, pageSize };
+}
+
 export const postService = {
   list(query: ListPostsQuery = {}): PaginatedResult<Post> {
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 10;
-    let items = getPosts()
-      .filter((p) => isPubliclyVisible(p.moderationStatus))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    let items = getPosts().filter((p) => isPubliclyVisible(p.moderationStatus));
 
     if (query.search?.trim()) {
       const q = query.search.trim().toLowerCase();
@@ -41,14 +88,29 @@ export const postService = {
       items = items.filter((p) => p.tags.some((tag) => tag.toLowerCase().includes(f)));
     }
 
-    const total = items.length;
-    const start = (page - 1) * pageSize;
-    return {
-      items: items.slice(start, start + pageSize),
-      total,
-      page,
-      pageSize,
-    };
+    items = sortPosts(items, query.sort ?? 'newest');
+
+    return paginate(items, query);
+  },
+
+  /** Bài do user đăng (kể cả chờ duyệt / ẩn) */
+  listByAuthor(userId: string, query: ListPostsQuery = {}): PaginatedResult<Post> {
+    let items = getPosts().filter((p) => p.authorId === userId);
+    items = sortPosts(items, query.sort ?? 'newest');
+    return paginate(items, query);
+  },
+
+  /** Bài user đang theo dõi */
+  listFollowed(userId: string, query: ListPostsQuery = {}): PaginatedResult<Post> {
+    const ids = followService.getFollowedPostIds(userId);
+    let items = getPosts().filter(
+      (p) => ids.includes(p.id) && isPubliclyVisible(p.moderationStatus),
+    );
+    items.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    if (query.sort && query.sort !== 'newest') {
+      items = sortPosts(items, query.sort);
+    }
+    return paginate(items, query);
   },
 
   getById(id: string, opts?: { includeNonPublic?: boolean; viewerId?: string }): Post | null {
@@ -125,8 +187,38 @@ export const postService = {
   },
 
   getAllTags(): string[] {
-    const set = new Set<string>();
-    getPosts().forEach((p) => p.tags.forEach((t) => set.add(t)));
-    return [...set].sort((a, b) => a.localeCompare(b, 'vi'));
+    return this.getTagsWithCount().map((t) => t.name);
+  },
+
+  getTagsWithCount(): TagWithCount[] {
+    const counts = new Map<string, number>();
+    getPosts()
+      .filter((p) => isPubliclyVisible(p.moderationStatus))
+      .forEach((p) => {
+        p.tags.forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
+      });
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'vi'));
+  },
+
+  getForumStats(): ForumStats {
+    const posts = getPosts().filter((p) => isPubliclyVisible(p.moderationStatus));
+    const answerCount = getComments().filter(
+      (c) => c.parentId === null && isPubliclyVisible(c.moderationStatus),
+    ).length;
+    return {
+      questionCount: posts.length,
+      answerCount,
+      tagCount: this.getAllTags().length,
+    };
+  },
+
+  /** Vài bài nổi bật cho trang chủ */
+  getFeatured(limit = 3): Post[] {
+    return sortPosts(
+      getPosts().filter((p) => isPubliclyVisible(p.moderationStatus)),
+      'active',
+    ).slice(0, limit);
   },
 };

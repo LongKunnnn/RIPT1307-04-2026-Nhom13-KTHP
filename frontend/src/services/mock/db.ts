@@ -7,6 +7,7 @@ import {
   SEED_POSTS,
   SEED_REPORTS,
   SEED_USERS,
+  SEED_FOLLOWS,
   SEED_VOTES,
 } from './seed';
 
@@ -18,12 +19,27 @@ const KEYS = {
   passwords: 'db_passwords',
   reports: 'db_reports',
   bannedWords: 'db_banned_words',
+  follows: 'db_post_follows',
   sessionUserId: 'session_user_id',
   initialized: 'db_initialized',
   schemaVersion: 'db_schema_version',
 } as const;
 
-const CURRENT_SCHEMA = 2;
+const CURRENT_SCHEMA = 4;
+
+/** Mở khóa mọi tài khoản ADMIN (phục hồi khi lỡ khóa admin). */
+function unlockAdminUsers() {
+  const users = readJson<User[]>(KEYS.users, []);
+  let changed = false;
+  const next = users.map((u) => {
+    if (u.role === 'ADMIN' && u.locked) {
+      changed = true;
+      return { ...u, locked: false };
+    }
+    return u;
+  });
+  if (changed) writeJson(KEYS.users, next);
+}
 
 function migrateSchema() {
   const ver = readJson(KEYS.schemaVersion, 1);
@@ -50,7 +66,21 @@ function migrateSchema() {
   if (!readJson(KEYS.bannedWords, null)) writeJson(KEYS.bannedWords, SEED_BANNED_WORDS);
   if (!readJson(KEYS.reports, null)) writeJson(KEYS.reports, SEED_REPORTS);
 
-  writeJson(KEYS.schemaVersion, CURRENT_SCHEMA);
+  writeJson(KEYS.schemaVersion, 2);
+}
+
+function migrateToV3() {
+  const ver = readJson(KEYS.schemaVersion, 1);
+  if (ver >= 3) return;
+  if (!readJson(KEYS.follows, null)) writeJson(KEYS.follows, SEED_FOLLOWS);
+  writeJson(KEYS.schemaVersion, 3);
+}
+
+function migrateToV4() {
+  const ver = readJson(KEYS.schemaVersion, 1);
+  if (ver >= 4) return;
+  unlockAdminUsers();
+  writeJson(KEYS.schemaVersion, 4);
 }
 
 function ensureSeed() {
@@ -62,11 +92,29 @@ function ensureSeed() {
     writeJson(KEYS.passwords, SEED_PASSWORDS);
     writeJson(KEYS.reports, SEED_REPORTS);
     writeJson(KEYS.bannedWords, SEED_BANNED_WORDS);
+    writeJson(KEYS.follows, SEED_FOLLOWS);
     writeJson(KEYS.initialized, true);
     writeJson(KEYS.schemaVersion, CURRENT_SCHEMA);
     return;
   }
   migrateSchema();
+  migrateToV3();
+  migrateToV4();
+}
+
+/** Gọi thủ công nếu cần mở khóa admin ngay (console / dev). */
+export function repairLockedAdminAccounts(): number {
+  const users = readJson<User[]>(KEYS.users, []);
+  let count = 0;
+  const next = users.map((u) => {
+    if (u.role === 'ADMIN' && u.locked) {
+      count += 1;
+      return { ...u, locked: false };
+    }
+    return u;
+  });
+  if (count > 0) writeJson(KEYS.users, next);
+  return count;
 }
 
 export function getUsers(): User[] {
@@ -138,6 +186,17 @@ export function getBannedWords(): BannedWord[] {
 
 export function setBannedWords(words: BannedWord[]) {
   writeJson(KEYS.bannedWords, words);
+}
+
+export function getFollows(): { userId: string; postId: string; createdAt: string }[] {
+  ensureSeed();
+  return readJson(KEYS.follows, []);
+}
+
+export function setFollows(
+  follows: { userId: string; postId: string; createdAt: string }[],
+) {
+  writeJson(KEYS.follows, follows);
 }
 
 export function newId(prefix: string) {

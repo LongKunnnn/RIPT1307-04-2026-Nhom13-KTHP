@@ -1,16 +1,46 @@
 import { useMemo, useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
-import { adminService, type UpsertUserInput } from '@/services/admin/adminService';
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Tooltip,
+  message,
+} from 'antd';
+import {
+  adminService,
+  assertAdminUserAction,
+  type UpsertUserInput,
+} from '@/services/admin/adminService';
 import type { User, UserRole } from '@/types';
 import { formatViDate, roleLabel } from '@/utils/format';
 import { DEMO_PASSWORD } from '@/services/mock/seed';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
+  const actorId = currentUser?.id ?? null;
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [form] = Form.useForm<UpsertUserInput>();
   const data = useMemo(() => adminService.listUsers(), [tick]);
+
+  const guardTip = (targetId: string, action: 'delete' | 'lock' | 'demote') => {
+    try {
+      assertAdminUserAction(targetId, action, actorId);
+      return undefined;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Không được phép';
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -33,7 +63,7 @@ export default function AdminUsersPage() {
   const save = async () => {
     const v = await form.validateFields();
     try {
-      if (editing) adminService.updateUser(editing.id, v);
+      if (editing) adminService.updateUser(editing.id, v, actorId);
       else adminService.createUser(v);
       message.success('Đã lưu người dùng');
       setOpen(false);
@@ -54,15 +84,25 @@ export default function AdminUsersPage() {
     {
       title: 'Khóa',
       dataIndex: 'locked',
-      render: (locked: boolean, row: User) => (
-        <Switch
-          checked={locked}
-          onChange={(v) => {
-            adminService.setLocked(row.id, v);
-            setTick((t) => t + 1);
-          }}
-        />
-      ),
+      render: (locked: boolean, row: User) => {
+        const lockTip = guardTip(row.id, 'lock');
+        const switchEl = (
+          <Switch
+            checked={locked}
+            disabled={!!lockTip && !locked}
+            onChange={(v) => {
+              try {
+                adminService.setLocked(row.id, v, actorId);
+                setTick((t) => t + 1);
+                message.success(v ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
+              } catch (e) {
+                message.error(e instanceof Error ? e.message : 'Lỗi');
+              }
+            }}
+          />
+        );
+        return lockTip && !locked ? <Tooltip title={lockTip}>{switchEl}</Tooltip> : switchEl;
+      },
     },
     {
       title: 'Ngày tạo',
@@ -71,43 +111,73 @@ export default function AdminUsersPage() {
     },
     {
       title: 'Thao tác',
-      render: (_: unknown, row: User) => (
-        <Space wrap>
-          <Button size="small" onClick={() => openEdit(row)}>
-            Sửa
-          </Button>
-          <Button
-            size="small"
-            onClick={() => {
-              adminService.resetPassword(row.id, DEMO_PASSWORD);
-              message.success(`Đã đặt lại mật khẩu: ${DEMO_PASSWORD}`);
-            }}
-          >
-            Cấp lại MK
-          </Button>
-          <Popconfirm
-            title="Xóa người dùng?"
-            onConfirm={() => {
-              adminService.deleteUser(row.id);
-              setTick((t) => t + 1);
-            }}
-          >
-            <Button danger size="small">
-              Xóa
+      render: (_: unknown, row: User) => {
+        const deleteTip = guardTip(row.id, 'delete');
+        const isSelf = row.id === actorId;
+        return (
+          <Space wrap>
+            <Button size="small" onClick={() => openEdit(row)}>
+              Sửa
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            <Button
+              size="small"
+              onClick={() => {
+                adminService.resetPassword(row.id, DEMO_PASSWORD);
+                message.success(`Đã đặt lại mật khẩu: ${DEMO_PASSWORD}`);
+              }}
+            >
+              Cấp lại MK
+            </Button>
+            {deleteTip ? (
+              <Tooltip title={deleteTip}>
+                <Button danger size="small" disabled>
+                  Xóa
+                </Button>
+              </Tooltip>
+            ) : (
+              <Popconfirm
+                title="Xóa người dùng?"
+                onConfirm={() => {
+                  try {
+                    adminService.deleteUser(row.id, actorId);
+                    setTick((t) => t + 1);
+                    message.success('Đã xóa người dùng');
+                  } catch (e) {
+                    message.error(e instanceof Error ? e.message : 'Lỗi');
+                  }
+                }}
+              >
+                <Button danger size="small">
+                  Xóa
+                </Button>
+              </Popconfirm>
+            )}
+            {isSelf && (
+              <Tag color="blue" style={{ margin: 0 }}>
+                Bạn
+              </Tag>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Quản lý người dùng</h2>
-        <Button type="primary" onClick={openCreate}>
-          Thêm người dùng
-        </Button>
+      <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 16 }}>
+        <Space wrap>
+          <h2 style={{ margin: 0 }}>Quản lý người dùng</h2>
+          <Button type="primary" onClick={openCreate}>
+            Thêm người dùng
+          </Button>
+        </Space>
+        <Alert
+          type="info"
+          showIcon
+          message="Bảo vệ tài khoản quản trị"
+          description="Không thể tự khóa, tự xóa hoặc tự hạ quyền admin. Hệ thống luôn giữ ít nhất một quản trị viên đang hoạt động."
+        />
       </Space>
       <Table rowKey="id" columns={columns} dataSource={data} pagination={{ pageSize: 8 }} />
       <Modal
@@ -125,6 +195,7 @@ export default function AdminUsersPage() {
           </Form.Item>
           <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
             <Select
+              disabled={editing?.id === actorId}
               options={[
                 { value: 'STUDENT', label: 'Sinh viên' },
                 { value: 'LECTURER', label: 'Giảng viên' },
@@ -132,6 +203,14 @@ export default function AdminUsersPage() {
               ]}
             />
           </Form.Item>
+          {editing?.id === actorId && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="Đây là tài khoản của bạn — không thể đổi vai trò."
+            />
+          )}
           <Form.Item name="faculty" label="Khoa">
             <Input />
           </Form.Item>

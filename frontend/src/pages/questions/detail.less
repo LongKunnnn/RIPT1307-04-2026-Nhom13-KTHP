@@ -1,12 +1,9 @@
-@text: #0f172a;
-@muted: #64748b;
-@border: rgba(37, 99, 235, 0.18);
-@link: #2563eb;
+@import (reference) '@/styles/theme.less';
 
 .page {
   min-height: 100%;
   padding: 16px clamp(10px, 2vw, 24px) 40px;
-  background: linear-gradient(165deg, #93c5fd 0%, #bfdbfe 12%, #dbeafe 32%, #eff6ff 58%, #f8fafc 100%);
+  background: @gradient-page;
   color: @text;
 }
 
@@ -23,25 +20,25 @@
   margin-bottom: 12px;
   color: @link;
   font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
 
   &:hover {
+    color: @linkHover;
     text-decoration: underline;
   }
 }
 
 .card {
-  background: linear-gradient(175deg, #ffffff 0%, #f8fcff 55%, #faf8ff 100%);
-  border: 1px solid @border;
-  border-radius: 12px;
+  .glass-card();
   padding: 4px 4px 12px;
-  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
 }
 
 .title {
   margin-bottom: 8px !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: -0.02em;
+  .gradient-text();
 }
 
 .meta {
@@ -79,10 +76,8 @@
 
 .tag {
   border-radius: 6px;
-}
-
-.notice {
-  margin-top: 8px;
-  font-size: 13px;
-  color: @muted;
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: @link !important;
+  font-weight: 500;
 }

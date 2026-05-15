@@ -1,12 +1,9 @@
-@text: #0f172a;
-@muted: #64748b;
-@border: rgba(37, 99, 235, 0.18);
-@link: #2563eb;
+@import (reference) '@/styles/theme.less';
 
 .page {
   min-height: 100%;
   padding: 16px clamp(10px, 2vw, 24px) 40px;
-  background: linear-gradient(165deg, #93c5fd 0%, #bfdbfe 12%, #dbeafe 32%, #eff6ff 58%, #f8fafc 100%);
+  background: @gradient-page;
   color: @text;
 }
 
@@ -27,6 +24,7 @@
   margin-bottom: 8px;
   color: @link;
   font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
 
   &:hover {
@@ -36,7 +34,8 @@
 
 .title {
   margin: 0 !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
+  .gradient-text();
 }
 
 .sub {
@@ -47,11 +46,8 @@
 }
 
 .card {
-  background: linear-gradient(175deg, #ffffff 0%, #f8fcff 55%, #faf8ff 100%);
-  border: 1px solid @border;
-  border-radius: 12px;
+  .glass-card();
   padding: 20px 20px 8px;
-  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
 }
 
 .hint {

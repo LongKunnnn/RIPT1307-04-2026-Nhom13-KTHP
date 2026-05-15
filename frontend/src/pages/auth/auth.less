@@ -1,3 +1,5 @@
+@import (reference) '@/styles/theme.less';
+
 .wrap {
   min-height: calc(100vh - 140px);
   display: flex;
@@ -9,12 +11,25 @@
 .card {
   width: 100%;
   max-width: 420px;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
+  .glass-card();
+  padding: 8px 4px 4px;
+  overflow: hidden;
+
+  :global {
+    .ant-card-head {
+      background: @gradient-card-head !important;
+      border-bottom: 1px solid @border !important;
+      font-weight: 700;
+    }
+
+    .ant-card-head-title {
+      .gradient-text();
+    }
+  }
 }
 
 .hint {
   margin-top: 16px;
   font-size: 13px;
-  color: #64748b;
+  color: @muted;
 }

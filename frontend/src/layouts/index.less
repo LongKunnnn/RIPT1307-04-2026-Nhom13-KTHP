@@ -1,8 +1,10 @@
+@import (reference) '@/styles/theme.less';
+
 .siteRoot {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, #bfdbfe 0%, #dbeafe 20%, #e0f2fe 45%, #eff6ff 75%, #f1f5f9 100%);
+  background: @gradient-page;
 }
 
 .header {
@@ -12,10 +14,10 @@
   height: 64px;
   line-height: 64px;
   padding: 0 clamp(12px, 2.5vw, 28px);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(239, 246, 255, 0.95) 100%);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(37, 99, 235, 0.18);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid @border;
+  box-shadow: @shadow-soft;
 }
 
 .headerInner {
@@ -32,26 +34,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #0f1419;
+  color: @text;
   text-decoration: none;
   flex-shrink: 0;
 
   &:hover {
-    color: #2563eb;
+    color: @link;
   }
 }
 
 .brandIcon {
   width: 40px;
   height: 40px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+  border-radius: 10px;
+  background: @gradient-brand;
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  box-shadow: @shadow-btn;
 }
 
 .brandText {
@@ -62,11 +64,12 @@
   strong {
     font-size: 16px;
     letter-spacing: -0.02em;
+    color: @text;
   }
 
   small {
     font-size: 11px;
-    color: #536471;
+    color: @muted;
     font-weight: 500;
   }
 }
@@ -82,17 +85,17 @@
 }
 
 .navLink {
-  padding: 6px 12px;
-  border-radius: 999px;
-  color: #0f1419;
+  padding: 6px 14px;
+  border-radius: @radius-md;
+  color: @text;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
   transition: background 0.15s, color 0.15s;
 
   &:hover {
-    background: rgba(219, 234, 254, 0.9);
-    color: #1d4ed8;
+    background: #eff6ff;
+    color: @link;
   }
 }
 
@@ -100,15 +103,14 @@
   flex: 1;
   min-width: 0;
   max-width: 420px;
-  border-radius: 999px !important;
-  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
-  border: 1px solid rgba(37, 99, 235, 0.2) !important;
+  border-radius: @radius-md !important;
+  background: @surface !important;
+  border: 1px solid @border !important;
 
   &:hover,
   &:focus-within {
-    border-color: #2563eb !important;
-    background: #fff !important;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.22) !important;
+    border-color: @primary !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
   }
 
   @media (min-width: 1200px) {
@@ -116,16 +118,12 @@
   }
 }
 
-.searchIcon {
-  color: #536471;
-}
-
 .auth {
   flex-shrink: 0;
 }
 
 .loginBtn {
-  color: #0f1419 !important;
+  color: @text !important;
   font-weight: 600 !important;
 }
 
@@ -134,11 +132,11 @@
 }
 
 .footer {
-  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 40%, #f8fafc 100%);
-  color: #475569;
-  padding: 32px 24px 28px;
+  background: @surface;
+  color: @muted;
+  padding: 28px 24px;
   margin-top: auto;
-  border-top: 1px solid rgba(37, 99, 235, 0.12);
+  border-top: 1px solid @border;
 }
 
 .footerInner {
@@ -150,27 +148,12 @@
   line-height: 1.7;
 
   strong {
-    color: #0f172a;
-  }
-}
-
-.footerLinks {
-  margin-top: 10px;
-
-  a {
-    color: #2563eb;
-    margin: 0 12px;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-      color: #1d4ed8;
-    }
+    color: @text;
   }
 }
 
 .footerCopy {
-  margin-top: 14px;
+  margin-top: 12px;
   font-size: 12px;
   color: #94a3b8;
 }

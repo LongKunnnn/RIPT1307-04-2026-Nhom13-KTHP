@@ -10,6 +10,7 @@ import { CommentThread } from '@/components/forum/CommentThread';
 import { formatViDate, formatViews, roleColor, roleLabel } from '@/utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportContentButton } from '@/components/forum/ReportContentButton';
+import { FollowPostButton } from '@/components/forum/FollowPostButton';
 import styles from './detail.less';
 
 const { Title, Text, Paragraph } = Typography;
@@ -27,8 +28,8 @@ export default function QuestionDetailPage() {
     return (
       <div className={styles.page}>
         <div className={styles.inner}>
-          <Link to={`${ROUTES.home}#feed`} className={styles.back}>
-            <ArrowLeftOutlined /> Về danh sách
+          <Link to={ROUTES.homeFeed} className={styles.back}>
+            <ArrowLeftOutlined /> Về bảng tin
           </Link>
           <Card className={styles.card} bordered={false}>
             <Empty description="Không tìm thấy bài viết" />
@@ -44,13 +45,13 @@ export default function QuestionDetailPage() {
         <Breadcrumb
           items={[
             { title: <Link to={ROUTES.home}>Trang chủ</Link> },
-            { title: <Link to={`${ROUTES.home}#feed`}>Câu hỏi</Link> },
+            { title: <Link to={ROUTES.myQuestions()}>Câu hỏi của tôi</Link> },
             { title: 'Chi tiết' },
           ]}
           style={{ marginBottom: 12 }}
         />
-        <Link to={`${ROUTES.home}#feed`} className={styles.back}>
-          <ArrowLeftOutlined /> Về danh sách câu hỏi
+        <Link to={ROUTES.homeFeed} className={styles.back}>
+          <ArrowLeftOutlined /> Về bảng tin
         </Link>
 
         <Card className={styles.card} bordered={false}>
@@ -83,7 +84,10 @@ export default function QuestionDetailPage() {
                 <Title level={2} className={styles.title} style={{ margin: 0 }}>
                   {post.title}
                 </Title>
-                <ReportContentButton targetType="post" targetId={post.id} />
+                <Space wrap>
+                  <FollowPostButton postId={post.id} authorId={post.authorId} onChange={refresh} />
+                  <ReportContentButton targetType="post" targetId={post.id} />
+                </Space>
               </div>
               <div className={styles.meta}>
                 <Space align="center" size={10}>

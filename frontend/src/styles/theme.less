@@ -1,0 +1,52 @@
+// SV Forum — xanh + trắng, gradient nhẹ, forum & admin dùng chung
+
+@primary: #2563eb;
+@primary-dark: #1d4ed8;
+@primary-light: #3b82f6;
+@link: #2563eb;
+@linkHover: #1d4ed8;
+@text: #0f172a;
+@muted: #64748b;
+@border: rgba(37, 99, 235, 0.16);
+@surface: #ffffff;
+@surface-muted: #f8fafc;
+
+@gradient-brand: linear-gradient(135deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
+@gradient-page: linear-gradient(180deg, #eff6ff 0%, #dbeafe 35%, #f8fafc 100%);
+@gradient-header: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+@gradient-card: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+@gradient-card-head: linear-gradient(90deg, #eff6ff 0%, #ffffff 100%);
+@gradient-sider-admin: linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%);
+@gradient-btn: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+@gradient-btn-hover: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+@gradient-title: linear-gradient(100deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
+@gradient-nav-active: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+@gradient-stat: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+
+@shadow-card: 0 4px 24px rgba(37, 99, 235, 0.1);
+@shadow-btn: 0 6px 20px rgba(37, 99, 235, 0.35);
+@shadow-soft: 0 1px 3px rgba(15, 23, 42, 0.06);
+
+@yellowBox: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+@yellowBorder: #fde68a;
+@redBox: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+@redBorder: #fecaca;
+@greenAns: #ecfdf5;
+@greenAnsBorder: #86efac;
+
+@radius-lg: 12px;
+@radius-md: 8px;
+
+.gradient-text() {
+  background: @gradient-title;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass-card() {
+  background: @gradient-card;
+  border: 1px solid @border;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}

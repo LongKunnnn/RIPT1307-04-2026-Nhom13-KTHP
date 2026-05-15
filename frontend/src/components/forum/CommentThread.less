@@ -1,15 +1,21 @@
+@import (reference) '@/styles/theme.less';
+
 .thread {
   margin-top: 24px;
 }
 
 .compose {
   margin-bottom: 20px;
+  padding: 12px;
+  border-radius: @radius-md;
+  background: #f8fafc;
+  border: 1px solid @border;
 }
 
 .item {
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
+  border-bottom: 1px solid @border;
 }
 
 .row {
@@ -31,4 +37,6 @@
 
 .replyBox {
   margin: 8px 0 0 40px;
+  padding-left: 12px;
+  border-left: 3px solid @primary-light;
 }

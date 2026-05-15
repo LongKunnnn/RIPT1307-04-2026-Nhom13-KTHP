@@ -25,6 +25,7 @@ export default function ForumShell() {
     const params = new URLSearchParams(location.search);
     if (q) params.set('q', q);
     else params.delete('q');
+    params.set('tab', 'home');
     history.push({ pathname: ROUTES.home, search: params.toString(), hash: 'feed' });
   };
 
@@ -52,11 +53,11 @@ export default function ForumShell() {
           </Link>
 
           <nav className={styles.nav}>
-            <Link to={`${ROUTES.home}#feed`} className={styles.navLink}>
-              Câu hỏi
+            <Link to={ROUTES.myQuestions()} className={styles.navLink}>
+              Câu hỏi của tôi
             </Link>
-            <Link to={`${ROUTES.home}#feed`} className={styles.navLink}>
-              <TagsOutlined /> Thẻ
+            <Link to={ROUTES.homeFeed} className={styles.navLink}>
+              <TagsOutlined /> Bảng tin
             </Link>
           </nav>
 

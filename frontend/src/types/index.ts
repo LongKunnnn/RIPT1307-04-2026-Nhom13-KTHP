@@ -26,6 +26,8 @@ export interface Post {
   voteScore: number;
   answerCount: number;
   viewCount: number;
+  /** Điểm thưởng (tab "Có thưởng") — 0 hoặc không có = không có bounty */
+  bounty?: number;
   moderationStatus: ModerationStatus;
   /** Từ khóa cấm khớp (nếu có) */
   moderationFlags?: string[];

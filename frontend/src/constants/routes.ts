@@ -1,6 +1,15 @@
 /** Central route paths */
+export type MineSection = 'authored' | 'followed';
+
 export const ROUTES = {
   home: '/',
+  /** Bảng tin — tất cả câu hỏi cộng đồng */
+  homeFeed: '/#feed',
+  /** Tab cá nhân: bài của tôi / đang theo dõi */
+  myQuestions: (section: MineSection = 'authored') =>
+    `/?tab=mine&section=${section}#mine`,
+  /** @deprecated dùng myQuestions */
+  questions: '/?tab=mine&section=authored#mine',
   login: '/login',
   register: '/register',
   askQuestion: '/questions/ask',

@@ -3,6 +3,7 @@ import {
   getComments,
   getPasswords,
   getPosts,
+  getSessionUserId,
   getUsers,
   newId,
   setPasswords,
@@ -10,6 +11,54 @@ import {
 } from '@/services/mock/db';
 import { moderationService } from '@/services/moderation/moderationService';
 import { reportService } from '@/services/moderation/reportService';
+
+export type AdminUserGuardAction = 'delete' | 'lock' | 'demote';
+
+function countActiveAdmins(users: User[]): number {
+  return users.filter((u) => u.role === 'ADMIN' && !u.locked).length;
+}
+
+/** Chặn tự xóa/khóa/hạ quyền và không để mất admin cuối cùng. */
+export function assertAdminUserAction(
+  targetId: string,
+  action: AdminUserGuardAction,
+  actorId?: string | null,
+): void {
+  const users = getUsers();
+  const target = users.find((u) => u.id === targetId);
+  if (!target) throw new Error('Không tìm thấy người dùng');
+
+  const actor = actorId ?? getSessionUserId();
+
+  if (actor && targetId === actor) {
+    if (action === 'delete') {
+      throw new Error('Không thể xóa tài khoản đang đăng nhập');
+    }
+    if (action === 'lock') {
+      throw new Error('Không thể khóa tài khoản đang đăng nhập');
+    }
+    if (action === 'demote') {
+      throw new Error('Không thể đổi vai trò tài khoản đang đăng nhập');
+    }
+  }
+
+  if (target.role !== 'ADMIN') return;
+
+  const isLastActiveAdmin =
+    countActiveAdmins(users) <= 1 && !target.locked;
+
+  if (!isLastActiveAdmin) return;
+
+  if (action === 'delete') {
+    throw new Error('Không thể xóa quản trị viên hoạt động cuối cùng');
+  }
+  if (action === 'lock') {
+    throw new Error('Không thể khóa quản trị viên hoạt động cuối cùng');
+  }
+  if (action === 'demote') {
+    throw new Error('Phải giữ ít nhất một quản trị viên đang hoạt động');
+  }
+}
 
 export interface UpsertUserInput {
   id?: string;
@@ -58,10 +107,13 @@ export const adminService = {
     return user;
   },
 
-  updateUser(id: string, input: UpsertUserInput): User {
+  updateUser(id: string, input: UpsertUserInput, actorId?: string | null): User {
     const users = getUsers();
     const idx = users.findIndex((u) => u.id === id);
     if (idx < 0) throw new Error('Không tìm thấy người dùng');
+    if (users[idx].role === 'ADMIN' && input.role !== 'ADMIN') {
+      assertAdminUserAction(id, 'demote', actorId);
+    }
     users[idx] = {
       ...users[idx],
       email: input.email.trim(),
@@ -78,7 +130,8 @@ export const adminService = {
     return users[idx];
   },
 
-  deleteUser(id: string) {
+  deleteUser(id: string, actorId?: string | null) {
+    assertAdminUserAction(id, 'delete', actorId);
     setUsers(getUsers().filter((u) => u.id !== id));
     const passwords = getPasswords();
     delete passwords[id];
@@ -92,10 +145,11 @@ export const adminService = {
     setPasswords(passwords);
   },
 
-  setLocked(id: string, locked: boolean) {
+  setLocked(id: string, locked: boolean, actorId?: string | null) {
     const users = getUsers();
     const idx = users.findIndex((u) => u.id === id);
     if (idx < 0) throw new Error('Không tìm thấy người dùng');
+    if (locked) assertAdminUserAction(id, 'lock', actorId);
     users[idx] = { ...users[idx], locked };
     setUsers(users);
   },

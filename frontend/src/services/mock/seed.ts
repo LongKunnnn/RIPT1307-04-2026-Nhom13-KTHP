@@ -63,6 +63,7 @@ export const SEED_POSTS: Post[] = [
     voteScore: 18,
     answerCount: 1,
     viewCount: 1204,
+    bounty: 50,
     moderationStatus: 'published',
   },
   {
@@ -117,6 +118,11 @@ export const SEED_BANNED_WORDS: BannedWord[] = [
 export const SEED_REPORTS: ContentReport[] = [];
 
 export const SEED_VOTES: VoteRecord[] = [];
+
+/** Demo: sinh viên theo dõi câu hỏi của giảng viên */
+export const SEED_FOLLOWS = [
+  { userId: 'u_student', postId: 'p3', createdAt: '2026-05-10T15:00:00.000Z' },
+];
 
 export const SEED_PASSWORDS: Record<string, string> = {
   u_admin: DEMO_PASSWORD,

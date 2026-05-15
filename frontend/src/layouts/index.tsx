@@ -15,9 +15,9 @@ export default function RootLayout() {
         algorithm: theme.defaultAlgorithm,
         token: {
           colorPrimary: '#2563eb',
+          colorLink: '#2563eb',
           borderRadius: 8,
-          fontFamily:
-            '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          fontFamily: "'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         },
       }}
     >

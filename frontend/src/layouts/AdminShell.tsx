@@ -56,7 +56,7 @@ export default function AdminShell() {
               { key: 'users', icon: <TeamOutlined />, label: <Link to={ROUTES.admin.users}>Người dùng</Link> },
             ]}
           />
-          <Link to={ROUTES.home} style={{ color: '#fff', margin: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <Link to={ROUTES.home} className={styles.backForum}>
             <HomeOutlined /> Về diễn đàn
           </Link>
         </Sider>
