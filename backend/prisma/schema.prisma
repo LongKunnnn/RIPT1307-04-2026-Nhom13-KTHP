@@ -15,10 +15,10 @@ enum UserRole {
   admin
 }
 
-enum PostStatus {
-  active
+enum ModerationStatus {
+  published
+  pending
   hidden
-  deleted
 }
 
 enum TargetType {
@@ -31,143 +31,268 @@ enum NotificationType {
   reply
   vote
   system
+  moderation
+  report
+}
+
+enum ReportStatus {
+  open
+  resolved
+}
+
+enum ModerationResolveAction {
+  keep
+  warn
+  delete
+}
+
+enum BannedWordAction {
+  pending
+  hidden
+}
+
+enum TagCategory {
+  subject
+  class
+  faculty
+  field
+  other
 }
 
 // ================= MODELS =================
 
 model User {
-  id                 Int             @id @default(autoincrement())
-  email              String          @unique @db.VarChar(255)
-  username           String          @unique @db.VarChar(100)
-  password_hash      String          @db.VarChar(255)
-  full_name          String?         @db.VarChar(150)
-  avatar_url         String?         @db.VarChar(255)
-  role               UserRole        @default(student)
-  is_active          Boolean         @default(true)
-  created_at         DateTime        @default(now())
-  updated_at         DateTime        @updatedAt
+  id            Int      @id @default(autoincrement())
+  email         String   @unique @db.VarChar(255)
+  username      String   @unique @db.VarChar(100)
+  password_hash String   @db.VarChar(255)
+  full_name     String   @db.VarChar(150)
+  avatar_url    String?  @db.VarChar(500)
+  faculty       String?  @db.VarChar(150)
+  role          UserRole @default(student)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   // Quan hệ (Relations)
   posts              Post[]
   comments           Comment[]
   votes              Vote[]
-  notifications      Notification[]  @relation("UserNotifications")
-  sent_notifications Notification[]  @relation("SenderNotifications")
+  notifications      Notification[]       @relation("UserNotifications")
+  sent_notifications Notification[]       @relation("SenderNotifications")
+  refresh_tokens     RefreshToken[]
+  banned_words       BannedWord[]
+  reports_submitted  ContentReport[]      @relation("Reporter")
+  reports_resolved   ContentReport[]      @relation("Resolver")
+  moderation_logs    ModerationAuditLog[]
 
+  @@index([role])
+  @@index([is_active])
+  @@index([faculty])
   @@map("users")
 }
 
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  token_hash String    @unique @db.VarChar(255)
+  expires_at DateTime
+  revoked_at DateTime?
+  created_at DateTime  @default(now())
+
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("refresh_tokens")
+}
+
 model Post {
-  id                  Int             @id @default(autoincrement())
+  id                  Int              @id @default(autoincrement())
   author_id           Int
-  title               String          @db.VarChar(255)
-  slug                String          @unique @db.VarChar(255)
-  content             String          @db.Text
-  status              PostStatus      @default(active)
-  view_count          Int             @default(0)
-  accepted_comment_id Int?            @unique // Lời giải được chấp nhận (1-1)
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
+  title               String           @db.VarChar(255)
+  slug                String           @unique @db.VarChar(255)
+  excerpt             String?          @db.VarChar(500)
+  content             String           @db.Text
+  moderation_status   ModerationStatus @default(published)
+  moderation_note     String?          @db.Text
+  matched_words       Json?
+  view_count          Int              @default(0)
+  answer_count        Int              @default(0)
+  accepted_comment_id Int?             @unique
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
   deleted_at          DateTime?
 
   // Quan hệ (Relations)
-  author              User            @relation(fields: [author_id], references: [id])
-  accepted_comment    Comment?        @relation("AcceptedComment", fields: [accepted_comment_id], references: [id], onDelete: SetNull)
-  comments            Comment[]       @relation("PostComments")
-  post_tags           PostTag[]
-  notifications       Notification[]
+  author            User           @relation(fields: [author_id], references: [id])
+  accepted_comment  Comment?       @relation("AcceptedComment", fields: [accepted_comment_id], references: [id], onDelete: SetNull)
+  comments          Comment[]      @relation("PostComments")
+  post_tags         PostTag[]
+  notifications     Notification[]
 
-  // Đánh chỉ mục tối ưu tìm kiếm
   @@fulltext([title, content])
-  @@index([status, deleted_at])
+  @@index([author_id])
+  @@index([moderation_status])
+  @@index([created_at])
+  @@index([moderation_status, created_at])
+  @@index([deleted_at])
   @@map("posts")
 }
 
-model Comment {
-  id                  Int             @id @default(autoincrement())
-  post_id             Int
-  author_id           Int
-  parent_id           Int?
-  content             String          @db.Text
-  is_accepted         Boolean         @default(false)
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
-  deleted_at          DateTime?
-
-  // Quan hệ (Relations)
-  post                Post            @relation("PostComments", fields: [post_id], references: [id], onDelete: Cascade)
-  author              User            @relation(fields: [author_id], references: [id])
-  accepted_for_post   Post?           @relation("AcceptedComment")
-  
-  // Trả lời đa cấp (Self-referencing)
-  parent              Comment?        @relation("ReplyToComment", fields: [parent_id], references: [id], onDelete: Cascade)
-  replies             Comment[]       @relation("ReplyToComment")
-  notifications       Notification[]
-
-  @@index([post_id])
-  @@index([parent_id])
-  @@map("comments")
-}
-
 model Tag {
-  id                  Int             @id @default(autoincrement())
-  name                String          @unique @db.VarChar(100)
-  slug                String          @unique @db.VarChar(100)
-  description         String?         @db.VarChar(255)
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
+  id          Int         @id @default(autoincrement())
+  name        String      @unique @db.VarChar(100)
+  slug        String      @unique @db.VarChar(100)
+  category    TagCategory @default(other)
+  description String?     @db.VarChar(255)
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
 
-  post_tags           PostTag[]
+  post_tags   PostTag[]
 
+  @@index([category])
   @@map("tags")
 }
 
 model PostTag {
-  post_id             Int
-  tag_id              Int
+  post_id    Int
+  tag_id     Int
+  created_at DateTime @default(now())
 
-  post                Post            @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  tag                 Tag             @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade)
 
   @@id([post_id, tag_id])
   @@index([tag_id])
   @@map("post_tags")
 }
 
+model Comment {
+  id                Int              @id @default(autoincrement())
+  post_id           Int
+  author_id         Int
+  parent_id         Int?
+  content           String           @db.Text
+  is_accepted       Boolean          @default(false)
+  moderation_status ModerationStatus @default(published)
+  moderation_note   String?          @db.Text
+  matched_words     Json?
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  deleted_at        DateTime?
+
+  // Quan hệ (Relations)
+  post              Post           @relation("PostComments", fields: [post_id], references: [id], onDelete: Cascade)
+  author            User           @relation(fields: [author_id], references: [id])
+  accepted_for_post Post?          @relation("AcceptedComment")
+  parent            Comment?       @relation("ReplyToComment", fields: [parent_id], references: [id], onDelete: Cascade)
+  replies           Comment[]      @relation("ReplyToComment")
+  notifications     Notification[]
+
+  @@index([post_id])
+  @@index([author_id])
+  @@index([parent_id])
+  @@index([post_id, parent_id, created_at])
+  @@index([moderation_status])
+  @@index([deleted_at])
+  @@map("comments")
+}
+
 model Vote {
-  id                  Int             @id @default(autoincrement())
-  user_id             Int
-  target_id           Int
-  target_type         TargetType
-  vote_value          Int             // 1 hoặc -1
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
+  id          Int        @id @default(autoincrement())
+  user_id     Int
+  target_id   Int
+  target_type TargetType
+  vote_value  Int        @db.TinyInt
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
 
-  user                User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  // Unique Index chặn vote trùng
   @@unique([user_id, target_id, target_type])
-  @@index([target_id, target_type])
+  @@index([target_type, target_id])
   @@map("votes")
 }
 
 model Notification {
-  id                  Int             @id @default(autoincrement())
-  user_id             Int
-  sender_id           Int?
-  post_id             Int?
-  comment_id          Int?
-  type                NotificationType
-  content             String          @db.VarChar(255)
-  is_read             Boolean         @default(false)
-  created_at          DateTime        @default(now())
+  id         Int              @id @default(autoincrement())
+  user_id    Int
+  sender_id  Int?
+  post_id    Int?
+  comment_id Int?
+  type       NotificationType
+  title      String?          @db.VarChar(150)
+  content    String           @db.VarChar(500)
+  link_path  String?          @db.VarChar(255)
+  is_read    Boolean          @default(false)
+  created_at DateTime         @default(now())
 
   // Quan hệ (Relations)
-  user                User            @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
-  sender              User?           @relation("SenderNotifications", fields: [sender_id], references: [id], onDelete: SetNull)
-  post                Post?           @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  comment             Comment?        @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  user       User     @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+  sender     User?    @relation("SenderNotifications", fields: [sender_id], references: [id], onDelete: SetNull)
+  post       Post?    @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [comment_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id, is_read])
+  @@index([user_id, is_read, created_at])
+  @@index([user_id])
   @@map("notifications")
+}
+
+model BannedWord {
+  id         Int              @id @default(autoincrement())
+  word       String           @unique @db.VarChar(100)
+  action     BannedWordAction @default(pending)
+  created_by Int?
+  created_at DateTime         @default(now())
+  updated_at DateTime         @updatedAt
+
+  creator    User?            @relation(fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@map("banned_words")
+}
+
+model ContentReport {
+  id              Int                      @id @default(autoincrement())
+  target_type     TargetType
+  target_id       Int
+  reporter_id     Int
+  reason          String                   @db.VarChar(1000)
+  status          ReportStatus             @default(open)
+  resolved_action ModerationResolveAction?
+  resolved_by     Int?
+  resolved_at     DateTime?
+  created_at      DateTime                 @default(now())
+  updated_at      DateTime                 @updatedAt
+
+  reporter        User                     @relation("Reporter", fields: [reporter_id], references: [id], onDelete: Cascade)
+  resolver        User?                    @relation("Resolver", fields: [resolved_by], references: [id], onDelete: SetNull)
+  audit_logs      ModerationAuditLog[]
+
+  @@index([status])
+  @@index([target_type, target_id])
+  @@index([reporter_id, target_type, target_id, status])
+  @@index([created_at])
+  @@map("content_reports")
+}
+
+model ModerationAuditLog {
+  id              Int               @id @default(autoincrement())
+  actor_id        Int
+  target_type     TargetType
+  target_id       Int
+  action          String            @db.VarChar(50)
+  previous_status ModerationStatus?
+  new_status      ModerationStatus?
+  note            String?           @db.Text
+  report_id       Int?
+  created_at      DateTime          @default(now())
+
+  actor           User              @relation(fields: [actor_id], references: [id], onDelete: Cascade)
+  report          ContentReport?    @relation(fields: [report_id], references: [id], onDelete: SetNull)
+
+  @@index([target_type, target_id])
+  @@index([actor_id])
+  @@index([created_at])
+  @@map("moderation_audit_logs")
 }
