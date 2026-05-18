@@ -14,6 +14,8 @@ export const ROUTES = {
   register: '/register',
   askQuestion: '/questions/ask',
   questionDetail: (id: string) => `/questions/${encodeURIComponent(id)}`,
+  profile: '/profile',
+  publicProfile: (username: string) => `/profile/${encodeURIComponent(username)}`,
   admin: {
     root: '/admin',
     posts: '/admin/posts',

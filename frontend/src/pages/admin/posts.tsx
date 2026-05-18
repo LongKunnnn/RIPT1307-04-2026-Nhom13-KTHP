@@ -1,19 +1,40 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'umi';
-import { Button, Popconfirm, Space, Table, Tag, message } from 'antd';
-import { postService } from '@/services/posts/postService';
+import { Alert, Button, Popconfirm, Space, Table, Tag, message } from 'antd';
+import { adminService } from '@/services/admin/adminService';
 import { ROUTES } from '@/constants/routes';
 import { formatViDate, roleLabel } from '@/utils/format';
 import type { Post } from '@/types';
 
 export default function AdminPostsPage() {
-  const [tick, setTick] = useState(0);
-  const data = useMemo(() => postService.list({ page: 1, pageSize: 100 }).items, [tick]);
+  const [data, setData] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const remove = (id: string) => {
-    if (postService.delete(id)) {
+  const load = () => {
+    setLoading(true);
+    setLoadError(null);
+    adminService
+      .listPosts()
+      .then(setData)
+      .catch((e) => {
+        setData([]);
+        setLoadError(e instanceof Error ? e.message : 'Không tải được danh sách bài viết');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const remove = async (id: string) => {
+    try {
+      await adminService.deletePost(id);
       message.success('Đã xóa bài viết');
-      setTick((t) => t + 1);
+      load();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Không xóa được');
     }
   };
 
@@ -51,7 +72,21 @@ export default function AdminPostsPage() {
   return (
     <div>
       <h2 style={{ marginBottom: 16 }}>Quản lý bài viết</h2>
-      <Table rowKey="id" columns={columns} dataSource={data} pagination={{ pageSize: 10 }} />
+      {loadError ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Không tải được dữ liệu"
+          description={loadError}
+          action={
+            <Button size="small" onClick={load}>
+              Thử lại
+            </Button>
+          }
+        />
+      ) : null}
+      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={{ pageSize: 10 }} />
     </div>
   );
 }

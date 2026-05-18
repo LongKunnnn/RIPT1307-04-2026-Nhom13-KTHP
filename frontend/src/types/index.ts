@@ -1,17 +1,44 @@
-export type UserRole = 'ADMIN' | 'LECTURER' | 'STUDENT';
+export type UserRole = "ADMIN" | "LECTURER" | "STUDENT";
+
+export type PostDifficulty = "easy" | "medium" | "hard";
 
 export interface User {
   id: string;
   email: string;
+  username: string;
   displayName: string;
   role: UserRole;
   faculty?: string;
   locked: boolean;
+  rewardPoints?: number;
   createdAt: string;
+  birthday?: string;
+  bio?: string;
+  socialLinks?: Record<string, string>;
+  avatarUrl?: string;
+}
+
+export interface RegisterInput {
+  email: string;
+  displayName: string;
+  password: string;
+  role: UserRole;
+  faculty?: string;
 }
 
 /** published = hiển thị công khai; pending = chờ admin duyệt; hidden = ẩn khỏi diễn đàn */
-export type ModerationStatus = 'published' | 'pending' | 'hidden';
+export type ModerationStatus = "published" | "pending" | "hidden";
+
+export interface UserVoucher {
+  id: string;
+  itemId: string;
+  itemTitle: string;
+  itemDescription?: string;
+  cost: number;
+  voucherCode: string;
+  isUsed: boolean;
+  createdAt: string;
+}
 
 export interface Post {
   id: string;
@@ -21,6 +48,7 @@ export interface Post {
   tags: string[];
   authorId: string;
   authorName: string;
+  authorUsername: string;
   authorRole: UserRole;
   createdAt: string;
   voteScore: number;
@@ -28,11 +56,16 @@ export interface Post {
   viewCount: number;
   /** Điểm thưởng (tab "Có thưởng") — 0 hoặc không có = không có bounty */
   bounty?: number;
+  difficulty?: PostDifficulty;
+  avgRating?: number;
+  ratingCount?: number;
+  acceptedCommentId?: string;
   moderationStatus: ModerationStatus;
   /** Từ khóa cấm khớp (nếu có) */
   moderationFlags?: string[];
   /** Ghi chú admin sau khi xử lý (nhắc nhở, v.v.) */
   moderationNote?: string;
+  isAuthor?: boolean;
 }
 
 export interface Comment {
@@ -42,20 +75,22 @@ export interface Comment {
   body: string;
   authorId: string;
   authorName: string;
+  authorUsername: string;
   authorRole: UserRole;
   createdAt: string;
   voteScore: number;
+  isAccepted?: boolean;
   moderationStatus: ModerationStatus;
   moderationFlags?: string[];
   moderationNote?: string;
 }
 
-export type ReportTargetType = 'post' | 'comment';
+export type ReportTargetType = "post" | "comment";
 
-export type ReportStatus = 'open' | 'resolved';
+export type ReportStatus = "open" | "resolved";
 
 /** Hành động admin khi xử lý báo cáo / hàng đợi */
-export type ModerationResolveAction = 'keep' | 'warn' | 'delete';
+export type ModerationResolveAction = "keep" | "warn" | "delete";
 
 export interface ContentReport {
   id: string;
@@ -74,13 +109,13 @@ export interface ContentReport {
 export interface BannedWord {
   id: string;
   word: string;
-  action: 'pending' | 'hidden';
+  action: "pending" | "hidden";
   createdAt: string;
 }
 
 export interface ModerationQueueItem {
   id: string;
-  source: 'report' | 'automod';
+  source: "report" | "automod";
   targetType: ReportTargetType;
   targetId: string;
   reportId?: string;
@@ -94,7 +129,7 @@ export interface ModerationQueueItem {
   reporterName?: string;
 }
 
-export type VoteTargetType = 'post' | 'comment';
+export type VoteTargetType = "post" | "comment";
 
 export interface VoteRecord {
   targetType: VoteTargetType;
@@ -123,12 +158,25 @@ export interface CreatePostInput {
   title: string;
   body: string;
   tags: string[];
+  difficulty?: PostDifficulty;
+  bounty?: number;
 }
 
-export interface RegisterInput {
-  email: string;
-  password: string;
-  displayName: string;
-  role: 'STUDENT' | 'LECTURER';
-  faculty?: string;
+export interface LeaderboardEntry {
+  userId: string;
+  name: string;
+  role: UserRole;
+  points: number;
+  rewardPoints?: number;
+  reputation?: number;
+  acceptedAnswers?: number;
+  ratedPosts?: number;
+}
+
+export interface RewardItem {
+  id: string;
+  title: string;
+  description?: string;
+  cost: number;
+  stock: number;
 }

@@ -18,10 +18,12 @@ export default function LoginPage() {
       const u = await login(v.email, v.password);
       const state = history.location.state as { from?: string } | undefined;
       const from = state?.from;
-      if (from) {
+      if (from && from.startsWith('/admin') && u.role === 'ADMIN') {
         history.push(from);
       } else if (u.role === 'ADMIN') {
         history.push(ROUTES.admin.root);
+      } else if (from) {
+        history.push(from);
       } else {
         history.push(ROUTES.home);
       }

@@ -15,7 +15,7 @@ export function RequireRole({ roles, children }: Props) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      history.replace(ROUTES.login);
+      history.replace(ROUTES.login, { from: history.location.pathname });
       return;
     }
     if (user && !roles.includes(user.role)) {

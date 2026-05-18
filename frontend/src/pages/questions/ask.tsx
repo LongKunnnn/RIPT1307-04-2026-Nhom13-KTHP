@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, history } from 'umi';
-import { Breadcrumb, Button, Card, Form, Input, Typography, message } from 'antd';
+import { Breadcrumb, Button, Card, Form, Input, InputNumber, Select, Typography, message } from 'antd';
 import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { ROUTES } from '@/constants/routes';
 import { postService } from '@/services/posts/postService';
@@ -27,11 +27,13 @@ export default function AskQuestionPage() {
     }
     setSubmitting(true);
     try {
-      const post = postService.create(
+      const post = await postService.create(
         {
           title: values.title.trim(),
           body: values.body.trim(),
           tags: (values.tags ?? []).map((t) => String(t).trim()).filter(Boolean),
+          difficulty: values.difficulty,
+          bounty: values.bounty ?? 0,
         },
         { id: user.id, displayName: user.displayName, role: user.role },
       );
@@ -91,7 +93,7 @@ export default function AskQuestionPage() {
             layout="vertical"
             onFinish={onFinish}
             requiredMark="optional"
-            initialValues={{ tags: [] }}
+            initialValues={{ tags: [], difficulty: 'medium', bounty: 0 }}
           >
             <Form.Item
               label="Tiêu đề"
@@ -124,6 +126,24 @@ export default function AskQuestionPage() {
 
             <Form.Item label="Thẻ (môn / lớp / khoa / lĩnh vực)" name="tags">
               <TagSelectField />
+            </Form.Item>
+
+            <Form.Item label="Độ khó" name="difficulty" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'easy', label: 'Dễ' },
+                  { value: 'medium', label: 'Trung bình' },
+                  { value: 'hard', label: 'Khó' },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Điểm thưởng cho câu trả lời hay nhất"
+              name="bounty"
+              extra={`Số dư: ${(user?.rewardPoints ?? 0).toLocaleString('vi-VN')} điểm — sẽ trừ khi đăng bài`}
+            >
+              <InputNumber min={0} max={user?.rewardPoints ?? 0} style={{ width: '100%' }} />
             </Form.Item>
 
             <div className={styles.actions}>

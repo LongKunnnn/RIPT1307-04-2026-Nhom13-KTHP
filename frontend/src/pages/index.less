@@ -204,6 +204,20 @@
   gap: 8px;
 }
 
+.forumStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+
+  :global(.ant-statistic-title) {
+    font-size: 12px;
+  }
+
+  :global(.ant-statistic-content) {
+    font-size: 18px;
+  }
+}
+
 .mineSummaryRow {
   display: flex;
   align-items: center;
@@ -451,9 +465,25 @@
 }
 
 .qWhen {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 6px;
   color: @muted;
   font-size: 12px;
+}
+
+.editBtn {
+  padding: 0 !important;
+  height: auto !important;
+  font-size: 11px !important;
+  color: @primary !important;
+  margin-left: 8px !important;
+
+  &:hover {
+    color: @primary-dark !important;
+    text-decoration: underline !important;
+  }
 }
 
 .rightRail {
@@ -754,6 +784,13 @@
     background: #eff6ff;
     color: @link;
   }
+}
+
+.qRating {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 .bountyTag {
