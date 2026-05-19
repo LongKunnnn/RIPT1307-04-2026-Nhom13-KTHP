@@ -1,21 +1,31 @@
-import { Link, Outlet } from 'umi';
-import styles from './index.less';
+import { Outlet, useLocation } from 'umi';
+import { ConfigProvider, theme } from 'antd';
+import viVN from 'antd/locale/vi_VN';
+import ForumShell from './ForumShell';
+import AdminShell from './AdminShell';
 
-export default function Layout() {
+export default function RootLayout() {
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith('/admin');
+
   return (
-    <div className={styles.navs}>
-      <ul>
-        <li>
-          <Link to="/">Home</Link>
-        </li>
-        <li>
-          <Link to="/docs">Docs</Link>
-        </li>
-        <li>
-          <a href="https://github.com/umijs/umi">Github</a>
-        </li>
-      </ul>
-      <Outlet />
-    </div>
+    <ConfigProvider
+      locale={viVN}
+      theme={{
+        algorithm: theme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#2563eb',
+          colorLink: '#2563eb',
+          borderRadius: 8,
+          fontFamily: "'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        },
+      }}
+    >
+      {isAdmin ? (
+        <AdminShell />
+      ) : (
+        <ForumShell />
+      )}
+    </ConfigProvider>
   );
 }

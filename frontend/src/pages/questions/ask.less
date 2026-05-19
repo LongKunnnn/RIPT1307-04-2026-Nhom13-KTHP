@@ -1,0 +1,66 @@
+@import (reference) '@/styles/theme.less';
+
+.page {
+  min-height: 100%;
+  padding: 16px clamp(10px, 2vw, 24px) 40px;
+  background: @gradient-page;
+  color: @text;
+}
+
+.inner {
+  width: 100%;
+  max-width: min(920px, calc(100vw - 24px));
+  margin: 0 auto;
+}
+
+.head {
+  margin-bottom: 16px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: @link;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.title {
+  margin: 0 !important;
+  font-weight: 800 !important;
+  .gradient-text();
+}
+
+.sub {
+  display: block;
+  margin-top: 6px;
+  color: @muted;
+  font-size: 14px;
+}
+
+.card {
+  .glass-card();
+  padding: 20px 20px 8px;
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 13px;
+  color: @muted;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+}
