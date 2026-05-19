@@ -6,7 +6,8 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PostModule } from './modules/post/post.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -19,13 +20,14 @@ import { AppService } from './app.service';
     }]),
     PrismaModule,
     AuthModule,
+    PostModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: JwtAuthGuard,
     },
   ],
 })

@@ -20,12 +20,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const isHttpException = exception instanceof HttpException;
     const status = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     
-    // Rút trích thông báo lỗi. Nếu là lỗi hệ thống (500), ẩn chi tiết.
+    // Rút trích thông báo lỗi.
     const message = isHttpException 
       ? exception.getResponse() 
       : 'Lỗi hệ thống nội bộ, vui lòng thử lại sau.';
 
-    // Ghi log chi tiết xuống terminal dành cho Developer
+    // Ghi log chi tiết xuống terminal
     if (!isHttpException) {
       this.logger.error(`[${request.method}] ${request.url}`, exception instanceof Error ? exception.stack : 'Unknown Error');
     }
