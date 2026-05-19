@@ -55,17 +55,10 @@
   background: white;
 }
 
-.topRightContainer {
+.topRightLink {
   position: absolute;
   top: 40px;
   right: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.topRightLink {
   font-size: 13px;
   color: #666;
   font-weight: 500;
@@ -85,20 +78,6 @@
     &:hover {
       background: #fcfcfc;
       border-color: #bbb;
-    }
-  }
-}
-
-.forgotPassword {
-  font-size: 13px;
-  a {
-    color: #666;
-    text-decoration: underline;
-    font-weight: 500;
-    transition: color 0.2s;
-    
-    &:hover {
-      color: #333;
     }
   }
 }
@@ -222,13 +201,9 @@
     flex: none;
   }
 
-  .topRightContainer {
+  .topRightLink {
     position: static;
     margin-bottom: 30px;
-    align-items: center;
-  }
-  
-  .topRightLink {
     justify-content: center;
   }
 }

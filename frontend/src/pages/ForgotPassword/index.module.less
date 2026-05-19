@@ -55,17 +55,10 @@
   background: white;
 }
 
-.topRightContainer {
+.topRightLink {
   position: absolute;
   top: 40px;
   right: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.topRightLink {
   font-size: 13px;
   color: #666;
   font-weight: 500;
@@ -89,20 +82,6 @@
   }
 }
 
-.forgotPassword {
-  font-size: 13px;
-  a {
-    color: #666;
-    text-decoration: underline;
-    font-weight: 500;
-    transition: color 0.2s;
-    
-    &:hover {
-      color: #333;
-    }
-  }
-}
-
 .formContainer {
   margin: auto;
   width: 100%;
@@ -114,36 +93,15 @@
   font-size: 28px;
   font-weight: 700;
   color: #888;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   letter-spacing: -0.5px;
 }
 
-.socialButtons {
-  display: flex;
-  gap: 16px;
+.subtitle {
+  color: #666;
+  font-size: 14px;
   margin-bottom: 30px;
-  
-  .socialBtn {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    height: 44px;
-    border-radius: 8px;
-    border: 1px solid #eaeaea;
-    background: white;
-    cursor: pointer;
-    font-weight: 500;
-    color: #666;
-    font-size: 13px;
-    transition: all 0.2s;
-
-    &:hover {
-      background: #fafafa;
-      border-color: #d0d0d0;
-    }
-  }
+  line-height: 1.5;
 }
 
 .inputGroup {
@@ -190,7 +148,7 @@
 }
 
 .submitBtn {
-  width: 120px;
+  width: 150px;
   height: 44px;
   border-radius: 8px;
   background-color: #21263c;
@@ -222,13 +180,9 @@
     flex: none;
   }
 
-  .topRightContainer {
+  .topRightLink {
     position: static;
     margin-bottom: 30px;
-    align-items: center;
-  }
-  
-  .topRightLink {
     justify-content: center;
   }
 }

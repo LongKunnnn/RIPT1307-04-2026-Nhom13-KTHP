@@ -50,7 +50,10 @@ export default function LoginPage() {
         <Typography.Paragraph className={styles.hint}>
           Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn — mật khẩu <strong>{DEMO_PASSWORD}</strong>
         </Typography.Paragraph>
-        <Link to={ROUTES.register}>Chưa có tài khoản? Đăng ký</Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <Link to={ROUTES.register}>Chưa có tài khoản? Đăng ký</Link>
+          <Link to={ROUTES.forgotPassword}>Quên mật khẩu</Link>
+        </div>
       </Card>
     </div>
   );

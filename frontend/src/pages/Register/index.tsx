@@ -4,11 +4,11 @@ import { GoogleOutlined, FacebookFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import styles from './index.module.less';
 
-const LoginPage: React.FC = () => {
+const RegisterPage: React.FC = () => {
   const [form] = Form.useForm();
 
   const onFinish = (values: any) => {
-    console.log('Login values:', values);
+    console.log('Register values:', values);
   };
 
   return (
@@ -21,18 +21,13 @@ const LoginPage: React.FC = () => {
 
         {/* Right Side - Form */}
         <div className={styles.rightSide}>
-          <div className={styles.topRightContainer}>
-            <div className={styles.topRightLink}>
-              <span>Don't have an account?</span>
-              <a onClick={(e) => { e.preventDefault(); history.push('/register'); }}>Sign Up</a>
-            </div>
-            <div className={styles.forgotPassword}>
-              <a onClick={(e) => { e.preventDefault(); history.push('/forgotpassword'); }}>Forgot your password?</a>
-            </div>
+          <div className={styles.topRightLink}>
+            <span>Already have an account?</span>
+            <a onClick={(e) => { e.preventDefault(); history.push('/login'); }}>Sign In</a>
           </div>
 
           <div className={styles.formContainer}>
-            <h2 className={styles.title}>Welcome Back</h2>
+            <h2 className={styles.title}>Create Account</h2>
 
             <div className={styles.socialButtons}>
               <button type="button" className={styles.socialBtn}>
@@ -48,6 +43,10 @@ const LoginPage: React.FC = () => {
               onFinish={onFinish}
             >
               <div className={styles.inputGroup}>
+                <Form.Item name="fullName" rules={[{ required: true, message: 'Please input your full name' }]}>
+                  <Input placeholder="Full Name" className={styles.input} bordered={false} />
+                </Form.Item>
+
                 <Form.Item name="email" rules={[{ required: true, type: 'email', message: 'Please input a valid email' }]}>
                   <Input placeholder="Email Address" className={styles.input} bordered={false} />
                 </Form.Item>
@@ -59,7 +58,7 @@ const LoginPage: React.FC = () => {
 
               <Form.Item>
                 <Button type="primary" htmlType="submit" className={styles.submitBtn}>
-                  Sign In
+                  Sign Up
                 </Button>
               </Form.Item>
             </Form>
@@ -70,4 +69,4 @@ const LoginPage: React.FC = () => {
   );
 };
 
-export default LoginPage;
+export default RegisterPage;

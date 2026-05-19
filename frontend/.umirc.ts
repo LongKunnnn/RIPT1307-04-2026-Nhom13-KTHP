@@ -7,6 +7,7 @@ export default defineConfig({
     { path: "/", component: "index" },
     { path: "/login", component: "auth/login" },
     { path: "/register", component: "auth/register" },
+    { path: "/forgot-password", component: "auth/forgot-password" },
     { path: "/questions/ask", component: "questions/ask" },
     { path: "/questions/:id", component: "questions/$id" },
     { path: "/admin", component: "admin/index" },
