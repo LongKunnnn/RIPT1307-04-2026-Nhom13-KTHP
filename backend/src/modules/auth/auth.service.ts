@@ -34,7 +34,7 @@ export class AuthService {
         email: dto.email,
         username: dto.username,
         password_hash: hashedPassword,
-        full_name: dto.fullName || 'Thành viên mới', // Nếu không truyền tên thì set mặc định
+        full_name: dto.fullName || 'Thành viên mới', 
       },
       select: {
         id: true,
@@ -123,7 +123,6 @@ export class AuthService {
         where: { user_id: payload.sub, revoked_at: null },
       });
 
-      // Kiểm tra token gửi lên có khớp với mã băm nào trong DB không
       let isValid = false;
       let currentTokenId = 0;
       for (const t of storedTokens) {
