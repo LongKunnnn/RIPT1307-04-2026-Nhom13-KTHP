@@ -59,6 +59,12 @@ enum TagCategory {
   other
 }
 
+enum PostDifficulty {
+  easy
+  medium
+  hard
+}
+
 // ================= MODELS =================
 
 model User {
@@ -68,14 +74,20 @@ model User {
   password_hash String   @db.VarChar(255)
   full_name     String   @db.VarChar(150)
   avatar_url    String?  @db.VarChar(500)
+  birthday      DateTime?
+  bio           String?  @db.Text
+  social_links  Json?
   faculty       String?  @db.VarChar(150)
   role          UserRole @default(student)
   is_active     Boolean  @default(true)
+  reward_points Int      @default(200)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
   // Quan hệ (Relations)
   posts              Post[]
+  post_ratings       PostRating[]
+  reward_redemptions RewardRedemption[]
   comments           Comment[]
   votes              Vote[]
   notifications      Notification[]       @relation("UserNotifications")
@@ -85,6 +97,7 @@ model User {
   reports_submitted  ContentReport[]      @relation("Reporter")
   reports_resolved   ContentReport[]      @relation("Resolver")
   moderation_logs    ModerationAuditLog[]
+  post_follows       PostFollow[]
 
   @@index([role])
   @@index([is_active])
@@ -119,6 +132,10 @@ model Post {
   matched_words       Json?
   view_count          Int              @default(0)
   answer_count        Int              @default(0)
+  bounty              Int              @default(0)
+  difficulty          PostDifficulty   @default(medium)
+  avg_rating          Float            @default(0)
+  rating_count        Int              @default(0)
   accepted_comment_id Int?             @unique
   created_at          DateTime         @default(now())
   updated_at          DateTime         @updatedAt
@@ -130,14 +147,33 @@ model Post {
   comments          Comment[]      @relation("PostComments")
   post_tags         PostTag[]
   notifications     Notification[]
+  post_follows      PostFollow[]
+  ratings           PostRating[]
 
   @@fulltext([title, content])
+  @@index([difficulty])
+  @@index([avg_rating])
   @@index([author_id])
   @@index([moderation_status])
   @@index([created_at])
   @@index([moderation_status, created_at])
   @@index([deleted_at])
+  @@index([bounty])
   @@map("posts")
+}
+
+model PostFollow {
+  user_id    Int
+  post_id    Int
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, post_id])
+  @@index([user_id, created_at])
+  @@index([post_id])
+  @@map("post_follows")
 }
 
 model Tag {
@@ -274,6 +310,52 @@ model ContentReport {
   @@index([reporter_id, target_type, target_id, status])
   @@index([created_at])
   @@map("content_reports")
+}
+
+model PostRating {
+  id         Int      @id @default(autoincrement())
+  post_id    Int
+  user_id    Int
+  stars      Int      @db.TinyInt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@index([user_id])
+  @@map("post_ratings")
+}
+
+model RewardItem {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(150)
+  description String?  @db.VarChar(500)
+  cost        Int
+  stock       Int      @default(100)
+  active      Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  redemptions RewardRedemption[]
+
+  @@map("reward_items")
+}
+
+model RewardRedemption {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  item_id     Int
+  cost        Int
+  voucher_code String? @db.VarChar(100)
+  is_used     Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  user User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  item RewardItem @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@map("reward_redemptions")
 }
 
 model ModerationAuditLog {

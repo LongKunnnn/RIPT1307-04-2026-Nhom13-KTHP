@@ -1,4 +1,4 @@
-import type { UserRole } from '@/types';
+import type { PostDifficulty, UserRole } from '@/types';
 
 export function formatViDate(iso: string): string {
   const d = new Date(iso);
@@ -38,5 +38,27 @@ export function roleColor(role: UserRole) {
       return 'blue';
     default:
       return 'default';
+  }
+}
+
+export function difficultyLabel(d: PostDifficulty): string {
+  switch (d) {
+    case 'easy':
+      return 'Dễ';
+    case 'hard':
+      return 'Khó';
+    default:
+      return 'Trung bình';
+  }
+}
+
+export function difficultyColor(d: PostDifficulty): string {
+  switch (d) {
+    case 'easy':
+      return 'green';
+    case 'hard':
+      return 'red';
+    default:
+      return 'blue';
   }
 }

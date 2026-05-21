@@ -1,4 +1,5 @@
-import { Link, Outlet, history } from 'umi';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, history } from 'umi';
 import { Layout, Menu, Button, Typography } from 'antd';
 import {
   DashboardOutlined,
@@ -17,11 +18,18 @@ import styles from './admin.less';
 
 const { Sider, Header, Content } = Layout;
 
-export default function AdminShell() {
+interface AdminShellProps {
+  children: ReactNode;
+}
+
+export default function AdminShell({ children }: AdminShellProps) {
   const { logout, user } = useAuth();
   const path = history.location.pathname;
+  const [queueCount, setQueueCount] = useState(0);
 
-  const queueCount = moderationService.countQueue();
+  useEffect(() => {
+    moderationService.countQueue().then(setQueueCount).catch(() => setQueueCount(0));
+  }, [path]);
 
   const selected = path.includes('/moderation')
     ? 'moderation'
@@ -68,7 +76,7 @@ export default function AdminShell() {
             </Button>
           </Header>
           <Content className={styles.content}>
-            <Outlet />
+            {children}
           </Content>
         </Layout>
       </Layout>

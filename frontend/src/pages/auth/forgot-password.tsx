@@ -1,24 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'umi';
-import { Button, Card, Form, Input, Typography, Alert } from 'antd';
+import { Button, Form, Input, Alert } from 'antd';
 import { ROUTES } from '@/constants/routes';
 import styles from './auth.less';
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const onFinish = async (v: { email: string }) => {
     setLoading(true);
     setError('');
-    setSuccess(false);
+    setSuccess('');
     try {
-      // logic demo quên mật khẩu
-      await new Promise((res) => setTimeout(res, 1000));
-      setSuccess(true);
+      // Simulate API call for password reset since backend might not have this endpoint yet
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setSuccess('Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu vào hòm thư của bạn.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gửi yêu cầu thất bại');
+      setError('Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -26,29 +26,44 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className={styles.wrap}>
-      <Card title="Quên mật khẩu" className={styles.card}>
-        {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
-        {success && <Alert type="success" message="Hướng dẫn khôi phục mật khẩu đã được gửi đến email của bạn." showIcon style={{ marginBottom: 16 }} />}
-        
-        <Typography.Paragraph>
-          Nhập email của bạn và chúng tôi sẽ gửi liên kết để đặt lại mật khẩu.
-        </Typography.Paragraph>
-
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input placeholder="Nhập địa chỉ email" />
-          </Form.Item>
-          
-          <Button type="primary" htmlType="submit" block loading={loading} style={{ marginBottom: 16 }}>
-            Gửi yêu cầu
-          </Button>
-        </Form>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <Link to={ROUTES.login}>Đã nhớ lại mật khẩu? Đăng nhập</Link>
-          <Link to={ROUTES.register}>Chưa có tài khoản? Đăng ký</Link>
+      <div className={styles.splitContainer}>
+        <div className={styles.leftPane}>
+          <div className={styles.logoBox}>CLASSIC DESIGNS</div>
         </div>
-      </Card>
+        <div className={styles.rightPane}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Reset Password</h1>
+            <div className={styles.switchPageWrapper}>
+               Back to <Link to={ROUTES.login}>Sign In</Link>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 30, color: '#4b5563', fontSize: 15, lineHeight: 1.6 }}>
+            Enter your email address and we'll send you a link to reset your password.
+          </div>
+
+          {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 20, borderRadius: 8 }} />}
+          {success && <Alert type="success" message={success} showIcon style={{ marginBottom: 20, borderRadius: 8 }} />}
+          
+          <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}>
+            <Form.Item 
+              name="email" 
+              label={<span className={styles.formLabel}>Email Address</span>} 
+              rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
+              style={{ marginBottom: 24 }}
+            >
+              <Input placeholder="name@example.com" />
+            </Form.Item>
+
+            <Form.Item style={{ marginTop: 32, marginBottom: 0 }}>
+              <Button type="primary" htmlType="submit" block loading={loading} className={styles.submitBtn}>
+                Send Reset Link
+              </Button>
+            </Form.Item>
+          </Form>
+
+        </div>
+      </div>
     </div>
   );
 }

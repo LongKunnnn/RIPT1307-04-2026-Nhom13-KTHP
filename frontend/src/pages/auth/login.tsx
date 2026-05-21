@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, history } from 'umi';
-import { Button, Card, Form, Input, Typography, Alert } from 'antd';
+import { Button, Form, Input, Typography, Alert } from 'antd';
+import { GoogleOutlined, FacebookOutlined } from '@ant-design/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROUTES } from '@/constants/routes';
 import { DEMO_PASSWORD } from '@/services/mock/seed';
@@ -18,10 +19,12 @@ export default function LoginPage() {
       const u = await login(v.email, v.password);
       const state = history.location.state as { from?: string } | undefined;
       const from = state?.from;
-      if (from) {
+      if (from && from.startsWith('/admin') && u.role === 'ADMIN') {
         history.push(from);
       } else if (u.role === 'ADMIN') {
         history.push(ROUTES.admin.root);
+      } else if (from) {
+        history.push(from);
       } else {
         history.push(ROUTES.home);
       }
@@ -34,27 +37,72 @@ export default function LoginPage() {
 
   return (
     <div className={styles.wrap}>
-      <Card title="Đăng nhập" className={styles.card}>
-        {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input placeholder="admin@svforum.vn" />
-          </Form.Item>
-          <Form.Item name="password" label="Mật khẩu" rules={[{ required: true }]}>
-            <Input.Password placeholder={DEMO_PASSWORD} />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" block loading={loading}>
-            Đăng nhập
-          </Button>
-        </Form>
-        <Typography.Paragraph className={styles.hint}>
-          Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn — mật khẩu <strong>{DEMO_PASSWORD}</strong>
-        </Typography.Paragraph>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <Link to={ROUTES.register}>Chưa có tài khoản? Đăng ký</Link>
-          <Link to={ROUTES.forgotPassword}>Quên mật khẩu</Link>
+      <div className={styles.splitContainer}>
+        <div className={styles.leftPane}>
+          <div className={styles.logoBox}>CLASSIC DESIGNS</div>
         </div>
-      </Card>
+        <div className={styles.rightPane}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Sign In</h1>
+            <div className={styles.switchPageWrapper}>
+              New here? <Link to={ROUTES.register}>Sign Up</Link>
+            </div>
+          </div>
+
+          <div className={styles.socialButtons}>
+            <button className={styles.socialBtn}>
+              <GoogleOutlined className={styles.icon} style={{ color: '#EA4335' }} />
+              Sign In With Google
+            </button>
+            <button className={styles.socialBtn}>
+              <FacebookOutlined className={styles.icon} style={{ color: '#1877F2' }} />
+              Sign In With Facebook
+            </button>
+          </div>
+
+          <div className={styles.divider}>
+            <span>Or sign in with email</span>
+          </div>
+
+          {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 20, borderRadius: 8 }} />}
+          
+          <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}>
+            <Form.Item 
+              name="email" 
+              label={<span className={styles.formLabel}>Email Address</span>} 
+              rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
+              style={{ marginBottom: 20 }}
+            >
+              <Input placeholder="name@example.com" />
+            </Form.Item>
+
+            <Form.Item 
+              name="password" 
+              label={<span className={styles.formLabel}>Password</span>} 
+              rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+              style={{ marginBottom: 8 }}
+            >
+              <Input.Password placeholder="Enter your password" />
+            </Form.Item>
+
+            <div style={{ textAlign: 'right', marginBottom: 20 }}>
+              <Link to={ROUTES.forgotPassword} style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', textDecoration: 'none' }}>
+                Forgot password?
+              </Link>
+            </div>
+
+            <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
+              <Button type="primary" htmlType="submit" block loading={loading} className={styles.submitBtn}>
+                Sign In
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <Typography.Paragraph className={styles.hint}>
+            Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn<br />Mật khẩu: <strong>{DEMO_PASSWORD}</strong>
+          </Typography.Paragraph>
+        </div>
+      </div>
     </div>
   );
 }

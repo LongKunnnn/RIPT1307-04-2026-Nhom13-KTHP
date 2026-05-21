@@ -1,16 +1,18 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'umi';
-import { Alert, Breadcrumb, Card, Tag, Typography, Empty, Avatar, Space, Divider } from 'antd';
+import { Alert, Breadcrumb, Card, Tag, Typography, Empty, Avatar, Space, Divider, Spin } from 'antd';
 import { ArrowLeftOutlined, ClockCircleOutlined, EyeOutlined, MessageOutlined } from '@ant-design/icons';
 import { ROUTES } from '@/constants/routes';
 import { postService } from '@/services/posts/postService';
-import { commentService } from '@/services/comments/commentService';
+import { commentService, type CommentNode } from '@/services/comments/commentService';
 import { VoteButtons } from '@/components/forum/VoteButtons';
 import { CommentThread } from '@/components/forum/CommentThread';
-import { formatViDate, formatViews, roleColor, roleLabel } from '@/utils/format';
+import { formatViDate, formatViews, roleColor, roleLabel, difficultyLabel, difficultyColor } from '@/utils/format';
+import { PostRatingWidget } from '@/components/forum/PostRatingWidget';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReportContentButton } from '@/components/forum/ReportContentButton';
 import { FollowPostButton } from '@/components/forum/FollowPostButton';
+import type { Post } from '@/types';
 import styles from './detail.less';
 
 const { Title, Text, Paragraph } = Typography;
@@ -19,10 +21,43 @@ export default function QuestionDetailPage() {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const postId = id ? decodeURIComponent(id) : '';
-  const [, setTick] = useState(0);
-  const post = postId ? postService.getById(postId, { viewerId: user?.id }) : null;
-  const comments = postId ? commentService.listByPost(postId) : [];
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  const [post, setPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<CommentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!postId) {
+      setPost(null);
+      setComments([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [p, c] = await Promise.all([
+        postService.getById(postId, { viewerId: user?.id }),
+        commentService.listByPost(postId),
+      ]);
+      setPost(p);
+      setComments(c);
+    } finally {
+      setLoading(false);
+    }
+  }, [postId, user?.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.inner} style={{ textAlign: 'center', padding: 48 }}>
+          <Spin size="large" />
+        </div>
+      </div>
+    );
+  }
 
   if (!post) {
     return (
@@ -80,50 +115,70 @@ export default function QuestionDetailPage() {
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             <VoteButtons targetType="post" targetId={post.id} score={post.voteScore} />
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <Title level={2} className={styles.title} style={{ margin: 0 }}>
-                  {post.title}
-                </Title>
-                <Space wrap>
-                  <FollowPostButton postId={post.id} authorId={post.authorId} onChange={refresh} />
-                  <ReportContentButton targetType="post" targetId={post.id} />
-                </Space>
-              </div>
-              <div className={styles.meta}>
-                <Space align="center" size={10}>
-                  <Avatar style={{ backgroundColor: '#2563eb' }}>{post.authorName.charAt(0)}</Avatar>
-                  <div>
-                    <Text strong>{post.authorName}</Text>{' '}
+              <Title level={2}>{post.title}</Title>
+              {post.difficulty && (
+                <Tag color={difficultyColor(post.difficulty)} style={{ marginBottom: 8 }}>
+                  Độ khó: {difficultyLabel(post.difficulty)}
+                </Tag>
+              )}
+              {(post.bounty ?? 0) > 0 && (
+                <Tag color="gold" style={{ marginBottom: 8 }}>
+                  Thưởng: {post.bounty} điểm
+                </Tag>
+              )}
+              <PostRatingWidget
+                postId={post.id}
+                authorId={post.authorId}
+                avgRating={post.avgRating}
+                ratingCount={post.ratingCount}
+                onRated={(avg, count) =>
+                  setPost((p) => (p ? { ...p, avgRating: avg, ratingCount: count } : p))
+                }
+              />
+              <Space wrap size="middle" style={{ marginBottom: 16 }}>
+                <Space>
+                  <Link to={ROUTES.publicProfile(post.authorUsername)}>
+                    <Avatar style={{ backgroundColor: '#2563eb' }}>{post.authorName.charAt(0)}</Avatar>
+                  </Link>
+                  <span>
+                    <Link to={ROUTES.publicProfile(post.authorUsername)}>
+                      <Text strong>{post.authorName}</Text>
+                    </Link>{' '}
                     <Tag color={roleColor(post.authorRole)}>{roleLabel(post.authorRole)}</Tag>
-                    <div>
-                      <Text type="secondary" style={{ fontSize: 13 }}>
-                        <ClockCircleOutlined /> {formatViDate(post.createdAt)}
-                      </Text>
-                    </div>
-                  </div>
+                  </span>
                 </Space>
-                <div className={styles.stats}>
-                  <span>
-                    <MessageOutlined /> {post.answerCount} trả lời
-                  </span>
-                  <span>
-                    <EyeOutlined /> {formatViews(post.viewCount)} lượt xem
-                  </span>
-                </div>
-              </div>
-              <Paragraph className={styles.body}>{post.body}</Paragraph>
-              <div className={styles.tags}>
+                <Text type="secondary">
+                  <ClockCircleOutlined /> {formatViDate(post.createdAt)}
+                </Text>
+                <Text type="secondary">
+                  <EyeOutlined /> {formatViews(post.viewCount)} lượt xem
+                </Text>
+                <Text type="secondary">
+                  <MessageOutlined /> {post.answerCount} trả lời
+                </Text>
+              </Space>
+              <div style={{ marginBottom: 16 }}>
                 {post.tags.map((t) => (
-                  <Tag key={t} className={styles.tag}>
-                    {t}
-                  </Tag>
+                  <Tag key={t}>{t}</Tag>
                 ))}
               </div>
+              <Paragraph style={{ whiteSpace: 'pre-wrap', fontSize: 15 }}>{post.body}</Paragraph>
+              <Space>
+                <FollowPostButton postId={post.id} authorId={post.authorId} />
+                <ReportContentButton targetType="post" targetId={post.id} />
+              </Space>
             </div>
           </div>
           <Divider />
-          <Title level={4}>Bình luận</Title>
-          <CommentThread postId={post.id} nodes={comments} onUpdated={refresh} />
+          <Title level={4}>Bình luận ({post.answerCount})</Title>
+          <CommentThread
+            postId={post.id}
+            postAuthorId={post.authorId}
+            postBounty={post.bounty}
+            acceptedCommentId={post.acceptedCommentId}
+            nodes={comments}
+            onUpdated={load}
+          />
         </Card>
       </div>
     </div>

@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, history, useLocation } from 'umi';
-import { ROUTES, type MineSection } from '@/constants/routes';
-import { postService, type PostFeedSort } from '@/services/posts/postService';
-import { followService } from '@/services/posts/followService';
-import type { Post } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { PostCreateModal } from '@/components/forum/PostCreateModal';
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link, history, useLocation } from "umi";
+import { ROUTES, type MineSection } from "@/constants/routes";
+import {
+  postService,
+  type PostFeedSort,
+  type ForumStats,
+} from "@/services/posts/postService";
+import { followService } from "@/services/posts/followService";
+import type { Post, PostDifficulty } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { PostCreateModal } from "@/components/forum/PostCreateModal";
+import { TagExplorerPanel } from "@/components/forum/TagExplorerPanel";
+import { LeaderboardPanel } from "@/components/forum/LeaderboardPanel";
+import { RewardsShopModal } from "@/components/forum/RewardsShopModal";
 import {
   Button,
   Card,
@@ -16,90 +23,119 @@ import {
   Space,
   Divider,
   Pagination,
-  Select,
   Empty,
   Alert,
-} from 'antd';
-import { formatViDate, formatViews, roleColor, roleLabel } from '@/utils/format';
+  Statistic,
+  Rate,
+} from "antd";
+import {
+  formatViDate,
+  formatViews,
+  roleColor,
+  roleLabel,
+  difficultyLabel,
+  difficultyColor,
+} from "@/utils/format";
 import {
   PlusOutlined,
-  HomeOutlined,
   QuestionCircleOutlined,
   TagsOutlined,
-  ReadOutlined,
   TeamOutlined,
   FireOutlined,
   EyeOutlined,
   ClockCircleOutlined,
   TrophyOutlined,
-  StarOutlined,
   BellOutlined,
   LoginOutlined,
-} from '@ant-design/icons';
-import styles from './index.less';
+  MessageOutlined,
+  GiftOutlined,
+  EditOutlined,
+} from "@ant-design/icons";
+import styles from "./index.less";
 
 const { Title, Paragraph, Text } = Typography;
 
-type PageTab = 'home' | 'mine';
+type PageTab = "home" | "mine" | "tags" | "leaderboard";
 
 const SORT_TABS: { key: PostFeedSort; label: string }[] = [
-  { key: 'newest', label: 'Mới nhất' },
-  { key: 'active', label: 'Hoạt động' },
-  { key: 'bounty', label: 'Có thưởng' },
-  { key: 'unanswered', label: 'Chưa trả lời' },
+  { key: "newest", label: "Mới nhất" },
+  { key: "active", label: "Hoạt động" },
+  { key: "rating", label: "Đánh giá cao" },
+  { key: "bounty", label: "Có thưởng" },
+  { key: "unanswered", label: "Chưa trả lời" },
 ];
 
 const SORT_LABELS: Record<PostFeedSort, string> = {
-  newest: 'mới nhất',
-  active: 'hoạt động gần đây',
-  bounty: 'có thưởng',
-  unanswered: 'chưa có trả lời',
+  newest: "mới nhất",
+  active: "hoạt động gần đây",
+  rating: "đánh giá cao",
+  bounty: "có thưởng",
+  unanswered: "chưa có trả lời",
 };
 
 const MINE_SECTIONS: { key: MineSection; label: string; icon: ReactNode }[] = [
-  { key: 'authored', label: 'Câu hỏi của tôi', icon: <QuestionCircleOutlined /> },
-  { key: 'followed', label: 'Đang theo dõi', icon: <BellOutlined /> },
-];
-
-const TOP_CONTRIBUTORS = [
-  { name: 'PGS. Lê Thu Hà', role: 'LECTURER' as const, points: 2840 },
-  { name: 'Nguyễn Minh An', role: 'STUDENT' as const, points: 1520 },
-  { name: 'Trần Hoàng Nam', role: 'STUDENT' as const, points: 1388 },
-  { name: 'Hoàng Thị Mai', role: 'STUDENT' as const, points: 1204 },
+  {
+    key: "authored",
+    label: "Câu hỏi của tôi",
+    icon: <QuestionCircleOutlined />,
+  },
+  { key: "followed", label: "Đang theo dõi", icon: <BellOutlined /> },
 ];
 
 function parsePageTab(search: string): PageTab {
-  const tab = new URLSearchParams(search).get('tab');
-  if (tab === 'mine' || tab === 'questions') return 'mine';
-  return 'home';
+  const tab = new URLSearchParams(search).get("tab");
+  if (tab === "mine" || tab === "questions") return "mine";
+  if (tab === "tags") return "tags";
+  if (tab === "leaderboard") return "leaderboard";
+  return "home";
 }
 
 function parseMineSection(search: string): MineSection {
-  const s = new URLSearchParams(search).get('section');
-  return s === 'followed' ? 'followed' : 'authored';
+  const s = new URLSearchParams(search).get("section");
+  return s === "followed" ? "followed" : "authored";
 }
 
 function parseSort(search: string): PostFeedSort {
-  const s = new URLSearchParams(search).get('sort');
-  if (s === 'active' || s === 'bounty' || s === 'unanswered' || s === 'newest') return s;
-  return 'newest';
+  const s = new URLSearchParams(search).get("sort");
+  if (
+    s === "active" ||
+    s === "bounty" ||
+    s === "unanswered" ||
+    s === "rating" ||
+    s === "newest"
+  )
+    return s;
+  return "newest";
 }
 
-function buildHomeUrl(opts: { sort?: PostFeedSort; q?: string; tag?: string; page?: number }) {
+function parseDifficulty(search: string): PostDifficulty | undefined {
+  const d = new URLSearchParams(search).get("difficulty");
+  if (d === "easy" || d === "medium" || d === "hard") return d;
+  return undefined;
+}
+
+function buildHomeUrl(opts: {
+  sort?: PostFeedSort;
+  q?: string;
+  tag?: string | null;
+  difficulty?: PostDifficulty | null;
+  page?: number;
+}) {
   const params = new URLSearchParams();
-  params.set('tab', 'home');
-  if (opts.sort && opts.sort !== 'newest') params.set('sort', opts.sort);
-  if (opts.q) params.set('q', opts.q);
-  if (opts.tag) params.set('tag', opts.tag);
-  if (opts.page && opts.page > 1) params.set('page', String(opts.page));
+  params.set("tab", "home");
+  if (opts.sort && opts.sort !== "newest") params.set("sort", opts.sort);
+  if (opts.q) params.set("q", opts.q);
+  if (opts.tag) params.set("tag", opts.tag);
+  if (opts.difficulty) params.set("difficulty", opts.difficulty);
+  if (opts.page && opts.page > 1) params.set("page", String(opts.page));
   return `${ROUTES.home}?${params.toString()}#feed`;
 }
 
 function buildMineUrl(opts: { section?: MineSection; page?: number }) {
   const params = new URLSearchParams();
-  params.set('tab', 'mine');
-  params.set('section', opts.section ?? 'authored');
-  if (opts.page && opts.page > 1) params.set('page', String(opts.page));
+  params.set("tab", "mine");
+  params.set("section", opts.section ?? "authored");
+  if (opts.page && opts.page > 1) params.set("page", String(opts.page));
   return `${ROUTES.home}?${params.toString()}#mine`;
 }
 
@@ -109,69 +145,148 @@ export default function HomePage() {
   const activeTab = parsePageTab(location.search);
   const mineSection = parseMineSection(location.search);
   const sort = parseSort(location.search);
-  const search = new URLSearchParams(location.search).get('q') ?? '';
-  const tagFromUrl = new URLSearchParams(location.search).get('tag') ?? undefined;
-  const pageFromUrl = Number(new URLSearchParams(location.search).get('page') ?? '1');
+  const search = new URLSearchParams(location.search).get("q") ?? "";
+  const tagFromUrl =
+    new URLSearchParams(location.search).get("tag") ?? undefined;
+  const difficultyFromUrl = parseDifficulty(location.search);
+  const pageFromUrl = Number(
+    new URLSearchParams(location.search).get("page") ?? "1",
+  );
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(Math.max(1, pageFromUrl || 1));
   const [tagFilter, setTagFilter] = useState<string | undefined>(tagFromUrl);
+  const [difficultyFilter, setDifficultyFilter] = useState<
+    PostDifficulty | undefined
+  >(difficultyFromUrl);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const [feedTick, setFeedTick] = useState(0);
-
-  const tagsWithCount = useMemo(() => postService.getTagsWithCount(), [feedTick, posts]);
+  const [loading, setLoading] = useState(false);
+  const [tagsWithCount, setTagsWithCount] = useState<
+    { name: string; count: number }[]
+  >([]);
+  const [authoredTotal, setAuthoredTotal] = useState(0);
+  const [followedCount, setFollowedCount] = useState(0);
+  const [forumStats, setForumStats] = useState<ForumStats | null>(null);
 
   const goHome = useCallback(
-    (extra?: { sort?: PostFeedSort; tag?: string | null; page?: number }) => {
+    (extra?: {
+      sort?: PostFeedSort;
+      tag?: string | null;
+      difficulty?: PostDifficulty | null;
+      page?: number;
+    }) => {
       history.push(
         buildHomeUrl({
           sort: extra?.sort ?? sort,
           q: search || undefined,
           tag: extra?.tag === null ? undefined : (extra?.tag ?? tagFilter),
+          difficulty:
+            extra?.difficulty === null
+              ? undefined
+              : (extra?.difficulty ?? difficultyFilter),
           page: extra?.page ?? 1,
         }),
       );
     },
-    [search, sort, tagFilter],
+    [search, sort, tagFilter, difficultyFilter],
   );
 
-  const goMine = useCallback((section: MineSection = mineSection, p = 1) => {
-    history.push(buildMineUrl({ section, page: p }));
-  }, [mineSection]);
+  const goMine = useCallback(
+    (section: MineSection = mineSection, p = 1) => {
+      history.push(buildMineUrl({ section, page: p }));
+    },
+    [mineSection],
+  );
 
   const setSort = useCallback(
     (next: PostFeedSort) => {
-      history.push(buildHomeUrl({ sort: next, q: search || undefined, tag: tagFilter, page: 1 }));
+      history.push(
+        buildHomeUrl({
+          sort: next,
+          q: search || undefined,
+          tag: tagFilter,
+          difficulty: difficultyFilter,
+          page: 1,
+        }),
+      );
       setPage(1);
     },
-    [search, tagFilter],
+    [search, tagFilter, difficultyFilter],
   );
 
-  const loadFeed = useCallback(() => {
-    if (activeTab === 'home') {
-      const res = postService.list({ page, pageSize: 8, search, tag: tagFilter, sort });
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (activeTab === "home") {
+        const res = await postService.list({
+          page,
+          pageSize: 8,
+          search,
+          tag: tagFilter,
+          difficulty: difficultyFilter,
+          sort,
+        });
+        setPosts(res.items);
+        setTotal(res.total);
+        return;
+      }
+      if (!user) {
+        setPosts([]);
+        setTotal(0);
+        return;
+      }
+      const res =
+        mineSection === "authored"
+          ? await postService.listByAuthor(user.id, { page, pageSize: 8 })
+          : await postService.listFollowed(user.id, { page, pageSize: 8 });
       setPosts(res.items);
       setTotal(res.total);
-      return;
+    } finally {
+      setLoading(false);
     }
-    if (!user) {
-      setPosts([]);
-      setTotal(0);
-      return;
+  }, [
+    activeTab,
+    page,
+    search,
+    tagFilter,
+    difficultyFilter,
+    sort,
+    user,
+    mineSection,
+  ]);
+
+  useEffect(() => {
+    postService
+      .getTagsWithCount()
+      .then(setTagsWithCount)
+      .catch(() => setTagsWithCount([]));
+    postService
+      .getForumStats()
+      .then(setForumStats)
+      .catch(() => setForumStats(null));
+  }, [feedTick]);
+
+  useEffect(() => {
+    if (user) {
+      postService
+        .listByAuthor(user.id, { page: 1, pageSize: 1 })
+        .then((r) => setAuthoredTotal(r.total));
+      followService.countFollowed(user.id).then(setFollowedCount);
+    } else {
+      setAuthoredTotal(0);
+      setFollowedCount(0);
     }
-    const res =
-      mineSection === 'authored'
-        ? postService.listByAuthor(user.id, { page, pageSize: 8 })
-        : postService.listFollowed(user.id, { page, pageSize: 8 });
-    setPosts(res.items);
-    setTotal(res.total);
-  }, [activeTab, page, search, tagFilter, sort, user, mineSection]);
+  }, [user, feedTick]);
 
   useEffect(() => {
     setTagFilter(tagFromUrl);
+    setDifficultyFilter(difficultyFromUrl);
     setPage(Math.max(1, pageFromUrl || 1));
-  }, [tagFromUrl, pageFromUrl]);
+  }, [tagFromUrl, difficultyFromUrl, pageFromUrl]);
 
   useEffect(() => {
     loadFeed();
@@ -179,33 +294,68 @@ export default function HomePage() {
 
   useEffect(() => {
     const hash = location.hash;
-    if (hash === '#feed' || hash === '#mine') {
-      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (hash === "#feed" || hash === "#mine") {
+      document
+        .getElementById(hash.slice(1))
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [activeTab, location.hash, location.search]);
+
+  const scrollToSection = (id: string) => {
+    if (id === "tag-cloud") {
+      history.push(`${ROUTES.home}?tab=tags`);
+    } else if (id === "contributors") {
+      history.push(`${ROUTES.home}?tab=leaderboard`);
+    } else {
+      goHome();
+      setTimeout(
+        () =>
+          document
+            .getElementById(id)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        100,
+      );
+    }
+  };
 
   const openAsk = () => {
     if (!isAuthenticated) {
       history.push(ROUTES.login);
       return;
     }
+    setEditingPost(null);
     setModalOpen(true);
   };
 
-  const applyTagFilter = (name: string | undefined) => {
-    setTagFilter(name);
-    setPage(1);
-    goHome({ tag: name ?? null, page: 1 });
+  const openEdit = (post: Post) => {
+    setEditingPost(post);
+    setModalOpen(true);
   };
 
-  const renderQuestionRow = (item: Post, opts?: { showModeration?: boolean }) => (
+  const applyFilters = (tag?: string, difficulty?: PostDifficulty) => {
+    setTagFilter(tag);
+    setDifficultyFilter(difficulty);
+    setPage(1);
+    goHome({ tag: tag ?? null, difficulty: difficulty ?? null, page: 1 });
+  };
+
+  const renderQuestionRow = (
+    item: Post,
+    opts?: { showModeration?: boolean },
+  ) => (
     <List.Item className={styles.qRow} key={item.id}>
       <article className={styles.qGrid}>
         <div className={styles.qVotes}>
           <span className={styles.qNum}>{item.voteScore}</span>
           <span className={styles.qLbl}>phiếu</span>
         </div>
-        <div className={item.answerCount > 0 ? `${styles.qAns} ${styles.qAnsHas}` : styles.qAns}>
+        <div
+          className={
+            item.answerCount > 0
+              ? `${styles.qAns} ${styles.qAnsHas}`
+              : styles.qAns
+          }
+        >
           <span className={styles.qNum}>{item.answerCount}</span>
           <span className={styles.qLbl}>trả lời</span>
         </div>
@@ -218,20 +368,40 @@ export default function HomePage() {
           <Link to={ROUTES.questionDetail(item.id)} className={styles.qTitle}>
             {item.title}
           </Link>
-          {opts?.showModeration && item.moderationStatus !== 'published' && (
+          {opts?.showModeration && item.moderationStatus !== "published" && (
             <Tag
-              color={
-                item.moderationStatus === 'pending' ? 'orange' : 'red'
-              }
+              color={item.moderationStatus === "pending" ? "orange" : "red"}
               className={styles.moderationTag}
             >
-              {item.moderationStatus === 'pending' ? 'Chờ duyệt' : 'Đã ẩn'}
+              {item.moderationStatus === "pending" ? "Chờ duyệt" : "Đã ẩn"}
+            </Tag>
+          )}
+          {item.difficulty && (
+            <Tag color={difficultyColor(item.difficulty)}>
+              {difficultyLabel(item.difficulty)}
             </Tag>
           )}
           {(item.bounty ?? 0) > 0 && (
-            <Tag icon={<TrophyOutlined />} color="gold" className={styles.bountyTag}>
+            <Tag
+              icon={<TrophyOutlined />}
+              color="gold"
+              className={styles.bountyTag}
+            >
               +{item.bounty} điểm thưởng
             </Tag>
+          )}
+          {(item.ratingCount ?? 0) > 0 && (
+            <span className={styles.qRating}>
+              <Rate
+                disabled
+                allowHalf
+                value={item.avgRating ?? 0}
+                style={{ fontSize: 12 }}
+              />
+              <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+                ({item.ratingCount})
+              </Text>
+            </span>
           )}
           <Paragraph className={styles.qExcerpt} ellipsis={{ rows: 2 }}>
             {item.excerpt}
@@ -239,12 +409,20 @@ export default function HomePage() {
           <div className={styles.qTags}>
             {item.tags.map((t, i) => {
               const toneClass =
-                i % 3 === 0 ? styles.qTagTone0 : i % 3 === 1 ? styles.qTagTone1 : styles.qTagTone2;
+                i % 3 === 0
+                  ? styles.qTagTone0
+                  : i % 3 === 1
+                    ? styles.qTagTone1
+                    : styles.qTagTone2;
               return (
                 <Tag
                   key={t}
-                  className={`${styles.qTag} ${toneClass} ${activeTab === 'home' ? styles.qTagClickable : ''}`}
-                  onClick={activeTab === 'home' ? () => applyTagFilter(t) : undefined}
+                  className={`${styles.qTag} ${toneClass} ${activeTab === "home" ? styles.qTagClickable : ""}`}
+                  onClick={
+                    activeTab === "home"
+                      ? () => applyFilters(t, difficultyFilter)
+                      : undefined
+                  }
                 >
                   {t}
                 </Tag>
@@ -253,17 +431,42 @@ export default function HomePage() {
           </div>
         </div>
         <div className={styles.qUser}>
-          <Avatar size="small" className={styles.qAvatar}>
-            {item.authorName.charAt(0)}
-          </Avatar>
+          <Link to={ROUTES.publicProfile(item.authorUsername)}>
+            <Avatar size="small" className={styles.qAvatar}>
+              {item.authorName.charAt(0)}
+            </Avatar>
+          </Link>
           <div className={styles.qUserMeta}>
-            <span className={styles.qAuthor}>{item.authorName}</span>
-            <Tag bordered={false} color={roleColor(item.authorRole)} className={styles.qRole}>
+            <Link
+              to={ROUTES.publicProfile(item.authorUsername)}
+              className={styles.qAuthor}
+            >
+              {item.authorName}
+            </Link>
+            <Tag
+              bordered={false}
+              color={roleColor(item.authorRole)}
+              className={styles.qRole}
+            >
               {roleLabel(item.authorRole)}
             </Tag>
             <div className={styles.qWhen}>
               <ClockCircleOutlined aria-hidden /> {formatViDate(item.createdAt)}
             </div>
+            {item.isAuthor && (
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                className={styles.editBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit(item);
+                }}
+              >
+                Sửa
+              </Button>
+            )}
           </div>
         </div>
       </article>
@@ -278,12 +481,19 @@ export default function HomePage() {
             Bảng tin
           </Title>
           <Text type="secondary" className={styles.qCount}>
-            {total.toLocaleString('vi-VN')} câu hỏi · {SORT_LABELS[sort]}
-            {search ? ` · tìm: "${search}"` : ''}
-            {tagFilter ? ` · thẻ: ${tagFilter}` : ''}
+            {total.toLocaleString("vi-VN")} câu hỏi · {SORT_LABELS[sort]}
+            {search ? ` · tìm: "${search}"` : ""}
+            {tagFilter ? ` · thẻ: ${tagFilter}` : ""}
+            {difficultyFilter ? ` · ${difficultyLabel(difficultyFilter)}` : ""}
           </Text>
         </div>
-        <Button type="primary" size="large" icon={<PlusOutlined />} className={styles.askBtn} onClick={openAsk}>
+        <Button
+          type="primary"
+          size="large"
+          icon={<PlusOutlined />}
+          className={styles.askBtn}
+          onClick={openAsk}
+        >
           Đặt câu hỏi
         </Button>
       </div>
@@ -294,52 +504,58 @@ export default function HomePage() {
             <button
               key={t.key}
               type="button"
-              className={`${styles.tab} ${sort === t.key ? styles.tabActive : ''}`}
+              className={`${styles.tab} ${sort === t.key ? styles.tabActive : ""}`}
               onClick={() => setSort(t.key)}
             >
               {t.label}
             </button>
           ))}
         </div>
-        <Select
-          allowClear
-          placeholder="Lọc theo thẻ"
-          style={{ minWidth: 160 }}
-          value={tagFilter}
-          onChange={(v) => applyTagFilter(v)}
-          options={tagsWithCount.map((t) => ({
-            label: `${t.name} (${t.count})`,
-            value: t.name,
-          }))}
-        />
       </div>
 
       {posts.length === 0 ? (
         <Empty
           className={styles.emptyFeed}
           description={
-            sort === 'bounty'
-              ? 'Chưa có câu hỏi nào đang gắn thưởng'
-              : sort === 'unanswered'
-                ? 'Không có câu hỏi chưa trả lời phù hợp bộ lọc'
-                : 'Không tìm thấy câu hỏi phù hợp'
+            sort === "bounty"
+              ? "Chưa có câu hỏi nào đang gắn thưởng"
+              : sort === "unanswered"
+                ? "Không có câu hỏi chưa trả lời phù hợp bộ lọc"
+                : "Không tìm thấy câu hỏi phù hợp"
           }
         >
-          <Button type="primary" onClick={() => applyTagFilter(undefined)}>
+          <Button
+            type="primary"
+            onClick={() => applyFilters(undefined, undefined)}
+          >
             Xóa bộ lọc
           </Button>
         </Empty>
       ) : (
         <>
-          <List className={styles.qList} dataSource={posts} split={false} renderItem={(item) => renderQuestionRow(item)} />
+          <List
+            className={styles.qList}
+            dataSource={posts}
+            split={false}
+            loading={loading}
+            renderItem={(item) => renderQuestionRow(item)}
+          />
           <Pagination
-            style={{ padding: '16px 18px', justifyContent: 'center' }}
+            style={{ padding: "16px 18px", justifyContent: "center" }}
             current={page}
             pageSize={8}
             total={total}
             onChange={(p) => {
               setPage(p);
-              history.push(buildHomeUrl({ sort, q: search || undefined, tag: tagFilter, page: p }));
+              history.push(
+                buildHomeUrl({
+                  sort,
+                  q: search || undefined,
+                  tag: tagFilter,
+                  difficulty: difficultyFilter,
+                  page: p,
+                }),
+              );
             }}
             showSizeChanger={false}
           />
@@ -357,16 +573,21 @@ export default function HomePage() {
               Câu hỏi của tôi
             </Title>
           </div>
-          <Empty className={styles.emptyFeed} description="Đăng nhập để xem câu hỏi bạn đăng và đang theo dõi">
-            <Button type="primary" icon={<LoginOutlined />} onClick={() => history.push(ROUTES.login)}>
+          <Empty
+            className={styles.emptyFeed}
+            description="Đăng nhập để xem câu hỏi bạn đăng và đang theo dõi"
+          >
+            <Button
+              type="primary"
+              icon={<LoginOutlined />}
+              onClick={() => history.push(ROUTES.login)}
+            >
               Đăng nhập
             </Button>
           </Empty>
         </main>
       );
     }
-
-    const followedCount = followService.countFollowed(user.id);
 
     return (
       <main className={styles.mainCol} id="mine">
@@ -379,7 +600,13 @@ export default function HomePage() {
               Quản lý bài bạn đăng và câu hỏi đang theo dõi
             </Text>
           </div>
-          <Button type="primary" size="large" icon={<PlusOutlined />} className={styles.askBtn} onClick={openAsk}>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            className={styles.askBtn}
+            onClick={openAsk}
+          >
             Đặt câu hỏi mới
           </Button>
         </div>
@@ -390,14 +617,14 @@ export default function HomePage() {
               <button
                 key={s.key}
                 type="button"
-                className={`${styles.tab} ${mineSection === s.key ? styles.tabActive : ''}`}
+                className={`${styles.tab} ${mineSection === s.key ? styles.tabActive : ""}`}
                 onClick={() => {
                   setPage(1);
                   goMine(s.key, 1);
                 }}
               >
                 {s.icon} {s.label}
-                {s.key === 'followed' && followedCount > 0 ? (
+                {s.key === "followed" && followedCount > 0 ? (
                   <span className={styles.tabBadge}>{followedCount}</span>
                 ) : null}
               </button>
@@ -405,7 +632,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {mineSection === 'followed' && (
+        {mineSection === "followed" && (
           <Alert
             type="info"
             showIcon
@@ -419,12 +646,12 @@ export default function HomePage() {
           <Empty
             className={styles.emptyFeed}
             description={
-              mineSection === 'authored'
-                ? 'Bạn chưa đăng câu hỏi nào'
-                : 'Bạn chưa theo dõi câu hỏi nào'
+              mineSection === "authored"
+                ? "Bạn chưa đăng câu hỏi nào"
+                : "Bạn chưa theo dõi câu hỏi nào"
             }
           >
-            {mineSection === 'authored' ? (
+            {mineSection === "authored" ? (
               <Button type="primary" icon={<PlusOutlined />} onClick={openAsk}>
                 Đặt câu hỏi đầu tiên
               </Button>
@@ -440,10 +667,15 @@ export default function HomePage() {
               className={styles.qList}
               dataSource={posts}
               split={false}
-              renderItem={(item) => renderQuestionRow(item, { showModeration: mineSection === 'authored' })}
+              loading={loading}
+              renderItem={(item) =>
+                renderQuestionRow(item, {
+                  showModeration: mineSection === "authored",
+                })
+              }
             />
             <Pagination
-              style={{ padding: '16px 18px', justifyContent: 'center' }}
+              style={{ padding: "16px 18px", justifyContent: "center" }}
               current={page}
               pageSize={8}
               total={total}
@@ -459,148 +691,228 @@ export default function HomePage() {
     );
   };
 
+  const renderLeaderboardView = () => (
+    <main className={styles.mainCol} id="leaderboard">
+      <div className={styles.mainHead}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>
+            Bảng xếp hạng
+          </Title>
+          <Text type="secondary" className={styles.qCount}>
+            Những thành viên tích cực nhất hệ thống
+          </Text>
+        </div>
+      </div>
+      <div style={{ padding: "24px" }}>
+        <LeaderboardPanel tags={tagsWithCount} />
+      </div>
+    </main>
+  );
+
+  const renderTagsView = () => (
+    <main className={styles.mainCol} id="tags">
+      <div className={styles.mainHead}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>
+            Thẻ phổ biến
+          </Title>
+          <Text type="secondary" className={styles.qCount}>
+            Tìm kiếm câu hỏi theo chủ đề và độ khó
+          </Text>
+        </div>
+      </div>
+      <div style={{ padding: "24px" }}>
+        <TagExplorerPanel
+          tags={tagsWithCount}
+          selectedTag={tagFilter}
+          selectedDifficulty={difficultyFilter}
+          onApply={applyFilters}
+        />
+      </div>
+    </main>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "mine":
+        return renderMineFeed();
+      case "tags":
+        return renderTagsView();
+      case "leaderboard":
+        return renderLeaderboardView();
+      case "home":
+      default:
+        return renderPublicFeed();
+    }
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.mobileNav}>
         <button
           type="button"
-          className={`${styles.mobileNavLink} ${activeTab === 'home' ? styles.mobileNavLinkActive : ''}`}
+          className={`${styles.mobileNavLink} ${activeTab === "home" ? styles.mobileNavLinkActive : ""}`}
           onClick={() => goHome()}
         >
-          Trang chủ
+          Bảng tin
         </button>
         <button
           type="button"
-          className={`${styles.mobileNavLink} ${activeTab === 'mine' ? styles.mobileNavLinkActive : ''}`}
-          onClick={() => goMine('authored')}
+          className={`${styles.mobileNavLink} ${activeTab === "mine" ? styles.mobileNavLinkActive : ""}`}
+          onClick={() => goMine("authored")}
         >
-          Câu hỏi của tôi
+          Của tôi
         </button>
       </div>
 
       <div className={styles.soShell}>
-        <aside className={styles.leftNav} aria-label="Điều hướng trang">
+        <aside className={styles.leftNav} aria-label="Điều hướng bổ sung">
           <nav className={styles.navBlock}>
-            <Text className={styles.navSection}>Công khai</Text>
+            <Text className={styles.navSection}>Khám phá thêm</Text>
             <button
               type="button"
-              className={`${styles.navItem} ${activeTab === 'home' ? styles.navItemActive : ''}`}
+              className={`${styles.navItem} ${activeTab === "home" ? styles.navItemActive : ""}`}
               onClick={() => goHome()}
             >
-              <HomeOutlined /> Trang chủ
-            </button>
-            <button type="button" className={styles.navItem} onClick={() => goHome()}>
-              <TagsOutlined /> Thẻ
-            </button>
-            <Text className={styles.navSection}>Cá nhân</Text>
-            <button
-              type="button"
-              className={`${styles.navItem} ${activeTab === 'mine' ? styles.navItemActive : ''}`}
-              onClick={() => goMine('authored')}
-            >
-              <StarOutlined /> Câu hỏi của tôi
+              <FireOutlined /> Bảng tin
             </button>
             <button
               type="button"
-              className={`${styles.navItem} ${activeTab === 'mine' && mineSection === 'followed' ? styles.navItemActive : ''}`}
-              onClick={() => goMine('followed')}
+              className={`${styles.navItem} ${activeTab === "mine" && mineSection === "followed" ? styles.navItemActive : ""}`}
+              onClick={() => goMine("followed")}
             >
               <BellOutlined /> Đang theo dõi
+              {followedCount > 0 ? (
+                <span className={styles.tabBadge}>{followedCount}</span>
+              ) : null}
             </button>
-            <span className={`${styles.navItem} ${styles.navItemDisabled}`} title="Sắp có">
-              <ReadOutlined /> Bài viết
-            </span>
-            <span className={`${styles.navItem} ${styles.navItemDisabled}`} title="Sắp có">
-              <TeamOutlined /> Thành viên
-            </span>
+            <button
+              type="button"
+              className={`${styles.navItem} ${activeTab === "tags" ? styles.navItemActive : ""}`}
+              onClick={() => scrollToSection("tag-cloud")}
+            >
+              <TagsOutlined /> Thẻ phổ biến
+            </button>
+            <button
+              type="button"
+              className={`${styles.navItem} ${activeTab === "leaderboard" ? styles.navItemActive : ""}`}
+              onClick={() => scrollToSection("contributors")}
+            >
+              <TeamOutlined /> Bảng xếp hạng
+            </button>
           </nav>
         </aside>
 
-        {activeTab === 'home' ? renderPublicFeed() : renderMineFeed()}
+        {renderContent()}
 
         <aside className={styles.rightRail} aria-label="Thông tin thêm">
-          <Space direction="vertical" size="middle" className={styles.railStack}>
-            {activeTab === 'home' && (
-              <Card className={styles.railCard} bordered={false} title="Lọc theo thẻ">
-                <div className={styles.tagCloud}>
-                  {tagsWithCount.map(({ name, count }) => (
-                    <button
-                      type="button"
-                      key={name}
-                      className={`${styles.tagPill} ${tagFilter === name ? styles.tagPillActive : ''}`}
-                      onClick={() => applyTagFilter(tagFilter === name ? undefined : name)}
-                    >
-                      <span>{name}</span>
-                      <small>{count}</small>
-                    </button>
-                  ))}
+          <Space
+            direction="vertical"
+            size="middle"
+            className={styles.railStack}
+          >
+            {activeTab === "home" && forumStats && (
+              <Card
+                className={styles.railCard}
+                bordered={false}
+                title="Thống kê diễn đàn"
+              >
+                <div className={styles.forumStats}>
+                  <Statistic
+                    title="Câu hỏi"
+                    value={forumStats.questionCount}
+                    prefix={<QuestionCircleOutlined />}
+                  />
+                  <Statistic
+                    title="Trả lời"
+                    value={forumStats.answerCount}
+                    prefix={<MessageOutlined />}
+                  />
+                  <Statistic
+                    title="Thẻ"
+                    value={forumStats.tagCount}
+                    prefix={<TagsOutlined />}
+                  />
                 </div>
               </Card>
             )}
 
-            {activeTab === 'mine' && isAuthenticated && user && (
-              <Card className={styles.railCard} bordered={false} title="Tóm tắt">
+            {isAuthenticated && user && (
+              <Card className={styles.railCard} bordered={false}>
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Text>
+                    <TrophyOutlined
+                      style={{ color: "#f59e0b", marginRight: 6 }}
+                    />
+                    Điểm thưởng:{" "}
+                    <strong>
+                      {(user.rewardPoints ?? 0).toLocaleString("vi-VN")}
+                    </strong>
+                  </Text>
+                  <Button
+                    icon={<GiftOutlined />}
+                    block
+                    onClick={() => setRewardsOpen(true)}
+                  >
+                    Đổi quà & voucher
+                  </Button>
+                </Space>
+              </Card>
+            )}
+
+            {activeTab === "mine" && isAuthenticated && user && (
+              <Card
+                className={styles.railCard}
+                bordered={false}
+                title="Tóm tắt"
+              >
                 <div className={styles.mineSummary}>
-                  <button type="button" className={styles.mineSummaryRow} onClick={() => goMine('authored')}>
+                  <button
+                    type="button"
+                    className={styles.mineSummaryRow}
+                    onClick={() => goMine("authored")}
+                  >
                     <QuestionCircleOutlined />
                     <span>Câu hỏi đã đăng</span>
-                    <strong>{postService.listByAuthor(user.id, { page: 1, pageSize: 1 }).total}</strong>
+                    <strong>{authoredTotal}</strong>
                   </button>
-                  <button type="button" className={styles.mineSummaryRow} onClick={() => goMine('followed')}>
+                  <button
+                    type="button"
+                    className={styles.mineSummaryRow}
+                    onClick={() => goMine("followed")}
+                  >
                     <BellOutlined />
                     <span>Đang theo dõi</span>
-                    <strong>{followService.countFollowed(user.id)}</strong>
+                    <strong>{followedCount}</strong>
                   </button>
                 </div>
               </Card>
             )}
-
-            <Card title="Đóng góp nổi bật" className={styles.railCard} bordered={false}>
-              <List
-                size="small"
-                dataSource={TOP_CONTRIBUTORS}
-                renderItem={(u, i) => (
-                  <List.Item className={styles.leaderRow} key={u.name}>
-                    <Space align="start" size={10}>
-                      <Avatar
-                        size={36}
-                        style={{
-                          backgroundColor: i < 2 ? '#2563eb' : '#94a3b8',
-                          color: '#fff',
-                        }}
-                      >
-                        {u.name.charAt(0)}
-                      </Avatar>
-                      <div>
-                        <Text strong>{u.name}</Text>{' '}
-                        <Tag color={roleColor(u.role)} style={{ fontSize: 11 }}>
-                          {roleLabel(u.role)}
-                        </Tag>
-                        <div className={styles.leaderPts}>{u.points.toLocaleString('vi-VN')} điểm</div>
-                      </div>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            </Card>
 
             <Card
               className={styles.railCard}
               bordered={false}
               title={
                 <span>
-                  <FireOutlined style={{ color: '#f59e0b', marginRight: 8 }} />
+                  <FireOutlined style={{ color: "#f59e0b", marginRight: 8 }} />
                   Gợi ý
                 </span>
               }
             >
               <Paragraph type="secondary" className={styles.railHint}>
-                {activeTab === 'home'
-                  ? 'Lướt bảng tin để khám phá. Theo dõi câu hỏi hay để xem lại trong tab Câu hỏi của tôi.'
-                  : 'Bài đăng của bạn có thể ở trạng thái chờ duyệt nếu chứa từ khóa nhạy cảm.'}
+                {activeTab === "home"
+                  ? "Chọn thẻ và độ khó ở panel bên phải, đánh giá sao bài hữu ích, trả lời câu có thưởng để tích điểm."
+                  : "Bài đăng của bạn có thể ở trạng thái chờ duyệt nếu chứa từ khóa nhạy cảm."}
               </Paragraph>
-              <Button type="primary" block className={styles.joinBtn} onClick={() => (activeTab === 'home' ? goMine('authored') : goHome())}>
-                {activeTab === 'home' ? 'Xem câu hỏi của tôi' : 'Về bảng tin'}
+              <Button
+                type="primary"
+                block
+                className={styles.joinBtn}
+                onClick={() =>
+                  activeTab === "home" ? setSort("bounty") : goHome()
+                }
+              >
+                {activeTab === "home" ? "Xem câu hỏi có thưởng" : "Về bảng tin"}
               </Button>
             </Card>
           </Space>
@@ -609,12 +921,20 @@ export default function HomePage() {
 
       <PostCreateModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingPost(null);
+        }}
         onCreated={(id) => {
           setFeedTick((t) => t + 1);
-          goMine('authored');
+          goMine("authored");
           history.push(ROUTES.questionDetail(id));
         }}
+        editPost={editingPost}
+      />
+      <RewardsShopModal
+        open={rewardsOpen}
+        onClose={() => setRewardsOpen(false)}
       />
     </div>
   );

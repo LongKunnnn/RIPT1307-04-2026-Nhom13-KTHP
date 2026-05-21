@@ -1,4 +1,4 @@
-export type { CreateQuestionPayload, CreateQuestionResult, QuestionListItem, QuestionService } from './types';
+export type { ForumRole, CreateQuestionPayload, CreateQuestionResult, QuestionListItem, QuestionService } from './types';
 export { mockQuestionService } from './mockQuestionService';
 export { createHttpQuestionService } from './httpQuestionService';
 

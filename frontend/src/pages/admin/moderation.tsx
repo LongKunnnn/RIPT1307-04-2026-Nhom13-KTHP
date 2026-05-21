@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -44,23 +45,54 @@ export default function AdminModerationPage() {
   const [newWord, setNewWord] = useState('');
   const [newWordAction, setNewWordAction] = useState<BannedWord['action']>('pending');
 
-  const queue = useMemo(() => moderationService.getQueue(), [tick]);
-  const bannedWords = useMemo(() => bannedWordService.list(), [tick]);
+  const [queue, setQueue] = useState<ModerationQueueItem[]>([]);
+  const [bannedWords, setBannedWords] = useState<BannedWord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = () => setTick((t) => t + 1);
 
-  const runAction = (item: ModerationQueueItem, action: ModerationResolveAction, warnMsg?: string) => {
-    moderationService.resolve(item, action, warnMsg);
-    if (action === 'warn') {
-      notify.notifyEmail('Nhắc nhở người dùng', `Đã gửi nhắc nhở tới tác giả "${item.authorName}" (giả lập).`);
+  useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+    Promise.all([moderationService.getQueue(), bannedWordService.list()])
+      .then(([q, w]) => {
+        setQueue(q);
+        setBannedWords(w);
+      })
+      .catch((e) => {
+        setQueue([]);
+        setBannedWords([]);
+        setLoadError(e instanceof Error ? e.message : 'Không tải được dữ liệu kiểm duyệt');
+      })
+      .finally(() => setLoading(false));
+  }, [tick]);
+
+  const runAction = async (
+    item: ModerationQueueItem,
+    action: ModerationResolveAction,
+    warnMsg?: string,
+  ): Promise<boolean> => {
+    try {
+      await moderationService.resolve(item, action, warnMsg);
+      if (action === 'warn') {
+        notify.notifyEmail(
+          'Nhắc nhở người dùng',
+          `Đã gửi nhắc nhở tới tác giả "${item.authorName}" (giả lập).`,
+        );
+      }
+      if (action === 'delete') {
+        notify.success('Đã xóa vĩnh viễn nội dung vi phạm');
+      }
+      if (action === 'keep') {
+        notify.success('Đã giữ lại — nội dung hiển thị công khai');
+      }
+      refresh();
+      return true;
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Thao tác thất bại');
+      return false;
     }
-    if (action === 'delete') {
-      notify.success('Đã xóa vĩnh viễn nội dung vi phạm');
-    }
-    if (action === 'keep') {
-      notify.success('Đã giữ lại — nội dung hiển thị công khai');
-    }
-    refresh();
   };
 
   const queueColumns = [
@@ -117,7 +149,7 @@ export default function AdminModerationPage() {
           <Button
             size="small"
             icon={<CheckOutlined />}
-            onClick={() => runAction(row, 'keep')}
+            onClick={() => void runAction(row, 'keep')}
           >
             Giữ lại
           </Button>
@@ -132,7 +164,7 @@ export default function AdminModerationPage() {
           >
             Nhắc nhở
           </Button>
-          <Popconfirm title="Xóa vĩnh viễn?" onConfirm={() => runAction(row, 'delete')}>
+          <Popconfirm title="Xóa vĩnh viễn?" onConfirm={() => void runAction(row, 'delete')}>
             <Button size="small" danger icon={<DeleteOutlined />}>
               Xóa
             </Button>
@@ -159,16 +191,30 @@ export default function AdminModerationPage() {
             size="small"
             value={row.action}
             style={{ width: 120 }}
-            onChange={(v) => {
-              bannedWordService.update(row.id, { action: v });
-              refresh();
+            onChange={async (v) => {
+              try {
+                await bannedWordService.update(row.id, { action: v });
+                refresh();
+              } catch (e) {
+                message.error(e instanceof Error ? e.message : 'Lỗi cập nhật');
+              }
             }}
             options={[
               { value: 'pending', label: 'Chờ duyệt' },
               { value: 'hidden', label: 'Ẩn ngay' },
             ]}
           />
-          <Popconfirm title="Xóa từ này?" onConfirm={() => { bannedWordService.remove(row.id); refresh(); }}>
+          <Popconfirm
+            title="Xóa từ này?"
+            onConfirm={async () => {
+              try {
+                await bannedWordService.remove(row.id);
+                refresh();
+              } catch (e) {
+                message.error(e instanceof Error ? e.message : 'Lỗi');
+              }
+            }}
+          >
             <Button size="small" danger>
               Xóa
             </Button>
@@ -184,6 +230,20 @@ export default function AdminModerationPage() {
       <Paragraph type="secondary">
         Hệ thống gom báo cáo từ người dùng và nội dung bị auto-mod (từ khóa cấm) vào một hàng đợi — Admin xử lý tại đây.
       </Paragraph>
+      {loadError ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Không tải được dữ liệu"
+          description={loadError}
+          action={
+            <Button size="small" onClick={() => refresh()}>
+              Thử lại
+            </Button>
+          }
+        />
+      ) : null}
 
       <Tabs
         items={[
@@ -200,6 +260,7 @@ export default function AdminModerationPage() {
                   rowKey="id"
                   dataSource={queue}
                   columns={queueColumns}
+                  loading={loading}
                   pagination={{ pageSize: 8 }}
                   locale={{ emptyText: 'Không có mục cần xử lý — tuyệt vời!' }}
                 />
@@ -225,9 +286,9 @@ export default function AdminModerationPage() {
                   <Button
                     type="primary"
                     icon={<PlusOutlined />}
-                    onClick={() => {
+                    onClick={async () => {
                       try {
-                        bannedWordService.add(newWord, newWordAction);
+                        await bannedWordService.add(newWord, newWordAction);
                         setNewWord('');
                         message.success('Đã thêm từ khóa');
                         refresh();
@@ -250,9 +311,13 @@ export default function AdminModerationPage() {
         title="Nhắc nhở tác giả"
         open={warnOpen}
         onCancel={() => setWarnOpen(false)}
-        onOk={() => {
-          if (warnItem) runAction(warnItem, 'warn', warnText);
-          setWarnOpen(false);
+        onOk={async () => {
+          if (!warnItem) {
+            setWarnOpen(false);
+            return;
+          }
+          const ok = await runAction(warnItem, 'warn', warnText);
+          if (ok) setWarnOpen(false);
         }}
         okText="Gửi nhắc nhở"
       >

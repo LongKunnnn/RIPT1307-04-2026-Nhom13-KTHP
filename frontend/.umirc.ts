@@ -8,6 +8,8 @@ export default defineConfig({
     { path: "/forgot-password", component: "auth/forgot-password" },
     { path: "/questions/ask", component: "questions/ask" },
     { path: "/questions/:id", component: "questions/$id" },
+    { path: "/profile", component: "profile/index" },
+    { path: "/profile/:username", component: "profile/$username" },
     { path: "/admin", component: "admin/index" },
     { path: "/admin/posts", component: "admin/posts" },
     { path: "/admin/posts/:id", component: "admin/posts/$id" },

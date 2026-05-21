@@ -27,7 +27,7 @@ export function ReportContentButton({ targetType, targetId, size = 'small' }: Pr
     if (!user) return;
     setLoading(true);
     try {
-      reportService.create(targetType, targetId, { id: user.id, displayName: user.displayName }, reason);
+      await reportService.create(targetType, targetId, { id: user.id, displayName: user.displayName }, reason);
       notify.notifyEmail('Báo cáo mới', `Admin: có báo cáo vi phạm mới từ ${user.displayName} — vào hàng đợi kiểm duyệt.`);
       message.success('Đã gửi báo cáo. Admin sẽ xem xét trong hàng đợi kiểm duyệt.');
       setOpen(false);
