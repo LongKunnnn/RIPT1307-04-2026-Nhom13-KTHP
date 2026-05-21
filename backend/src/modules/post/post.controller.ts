@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Patch, Body, Req, Query, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Req, Query, Param } from '@nestjs/common';
 import { PostService } from './post.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { UpdatePostDto } from './dto/update-post.dto';
-
+import { ApiQuery } from '@nestjs/swagger';
 @ApiTags('Posts (Bài viết)')
 @Controller('posts')
 export class PostController {
@@ -21,6 +21,10 @@ export class PostController {
 
   @Public()
   @Get()
+  // Ép Swagger hiểu đây là các tham số TÙY CHỌN (required: false)
+  @ApiQuery({ name: 'page', required: false, description: 'Số trang (mặc định là 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Số bài viết trên 1 trang (mặc định là 5)' })
+  @ApiQuery({ name: 'tag', required: false, description: 'Lọc theo hashtag (không bắt buộc)' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -32,7 +36,7 @@ export class PostController {
     return this.postService.findAll(pageNumber, limitNumber, tag);
   }
 
-  @Public() 
+  @Public()
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const postId = parseInt(id, 10);
@@ -43,12 +47,23 @@ export class PostController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateData: UpdatePostDto, 
+    @Body() updateData: UpdatePostDto,
     @Req() req: any,
   ) {
     const postId = parseInt(id, 10);
-    const userId = req.user.id; 
-    
+    const userId = req.user.id;
+
     return this.postService.update(postId, userId, updateData);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Xóa bài viết (Yêu cầu đăng nhập)' })
+
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const postId = parseInt(id, 10);
+    const userId = req.user.id;
+
+    return this.postService.remove(postId, userId);
   }
 }

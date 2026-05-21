@@ -4,8 +4,10 @@ import { NotFoundException, ForbiddenException, InternalServerErrorException } f
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { Injectable } from '@nestjs/common';
+@Injectable()
 export class PostService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) { }
 
   // Hàm chuyển đổi tiếng Việt có dấu thành Slug chuẩn SEO
   private convertToSlug(text: string): string {
@@ -173,7 +175,6 @@ export class PostService {
       throw new ForbiddenException('Bạn không thể sửa bài của người khác!');
     }
 
-    // Bóc tách dữ liệu
     const { tags, ...scalarFields } = updateData;
 
     const dataToUpdate: Prisma.PostUpdateInput = {
@@ -224,5 +225,27 @@ export class PostService {
       }
       throw new InternalServerErrorException('Lỗi hệ thống khi cập nhật bài viết!');
     }
+  }
+
+  async remove(id: number, userId: number) {
+    const post = await this.prisma.post.findUnique({
+      where: { id },
+      select: { author_id: true, deleted_at: true }, 
+    });
+
+    if (!post || post.deleted_at !== null) { 
+      throw new NotFoundException('Bài viết này không tồn tại!');
+    }
+
+    if (post.author_id !== userId) {
+      throw new ForbiddenException('Bạn không có quyền xóa bài của người khác!');
+    }
+
+    return this.prisma.post.update({
+      where: { id },
+      data: { 
+        deleted_at: new Date() 
+      },
+    });
   }
 }
