@@ -1,12 +1,6 @@
 import { defineConfig } from "umi";
 
 export default defineConfig({
-<<<<<<< HEAD
-  esbuildMinifyIIFE: true,
-  styles: ['@/styles/global.less'],
-=======
-  plugins: ["@umijs/plugins/dist/model"],
->>>>>>> 9cb5e9d8bed8a284c14e2f6b0384853955764bf3
   routes: [
     { path: "/", component: "index" },
     { path: "/login", component: "auth/login" },
