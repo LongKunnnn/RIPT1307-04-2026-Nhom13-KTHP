@@ -108,7 +108,12 @@ export async function apiFetch<T>(
   const token = getAccessToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const res = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
+  } catch (error) {
+    throw new ApiError('Không thể kết nối đến máy chủ (Network Error). Vui lòng kiểm tra lại backend.', 0);
+  }
 
   if (res.status === 401 && retry) {
     const newToken = await refreshAccessToken();
