@@ -5,6 +5,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { ApiQuery } from '@nestjs/swagger';
+
 @ApiTags('Posts (Bài viết)')
 @Controller('posts')
 export class PostController {

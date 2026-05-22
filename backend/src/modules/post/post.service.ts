@@ -5,6 +5,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Injectable } from '@nestjs/common';
+
+
 @Injectable()
 export class PostService {
   constructor(private readonly prisma: PrismaService) { }
@@ -63,7 +65,7 @@ export class PostService {
         }
       }
 
-      return tx.post.findUnique({
+      return tx.post.findFirst({
         where: { id: post.id },
         include: {
           post_tags: {
@@ -89,7 +91,9 @@ export class PostService {
     // Tính toán vị trí bắt đầu lấy (dành cho phân trang)
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = {};
+    const whereCondition: Prisma.PostWhereInput = {
+      deleted_at: null,
+    }; 
     if (tag) {
       whereCondition.post_tags = {
         some: {
@@ -134,7 +138,7 @@ export class PostService {
   }
 
   async findOne(id: number) {
-    const post = await this.prisma.post.findUnique({
+    const post = await this.prisma.post.findFirst({
       where: { id },
       include: {
         author: {
@@ -162,7 +166,7 @@ export class PostService {
   }
 
   async update(id: number, userId: number, updateData: UpdatePostDto) {
-    const post = await this.prisma.post.findUnique({
+    const post = await this.prisma.post.findFirst({
       where: { id },
       select: { author_id: true }
     });
@@ -228,12 +232,12 @@ export class PostService {
   }
 
   async remove(id: number, userId: number) {
-    const post = await this.prisma.post.findUnique({
+    const post = await this.prisma.post.findFirst({
       where: { id },
-      select: { author_id: true, deleted_at: true }, 
+      select: { author_id: true, deleted_at: true },
     });
 
-    if (!post || post.deleted_at !== null) { 
+    if (!post || post.deleted_at !== null) {
       throw new NotFoundException('Bài viết này không tồn tại!');
     }
 
@@ -243,8 +247,8 @@ export class PostService {
 
     return this.prisma.post.update({
       where: { id },
-      data: { 
-        deleted_at: new Date() 
+      data: {
+        deleted_at: new Date()
       },
     });
   }

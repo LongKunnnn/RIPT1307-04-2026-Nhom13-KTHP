@@ -8,6 +8,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PostModule } from './modules/post/post.module';
+import { CommentModule } from './modules/comment/comment.module';
+import { VoteModule } from './modules/vote/vote.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +23,8 @@ import { PostModule } from './modules/post/post.module';
     PrismaModule,
     AuthModule,
     PostModule,
+    CommentModule,
+    VoteModule,
   ],
   controllers: [AppController],
   providers: [
