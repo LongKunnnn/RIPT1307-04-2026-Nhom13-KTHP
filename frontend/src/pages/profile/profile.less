@@ -1,0 +1,110 @@
+@import (reference) "@/styles/theme.less";
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.profileCard {
+  .glass-card();
+  overflow: hidden;
+  margin-bottom: 24px;
+
+  :global {
+    .ant-card-head {
+      background: @gradient-card-head !important;
+      border-bottom: 1px solid @border !important;
+    }
+    .ant-card-head-title {
+      font-weight: 800;
+      .gradient-text();
+    }
+  }
+}
+
+.avatarSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  border-bottom: 1px solid @border;
+  background: #f8fafc;
+}
+
+.displayName {
+  margin: 16px 0 4px !important;
+  font-weight: 800 !important;
+}
+
+.username {
+  color: @muted;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.statsRow {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 16px;
+}
+
+.infoSection {
+  padding: 24px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: @primary;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: @muted;
+    text-transform: uppercase;
+  }
+
+  span {
+    font-size: 15px;
+    color: @text;
+  }
+}
+
+.bio {
+  grid-column: 1 / -1;
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: @radius-md;
+  font-style: italic;
+  color: #475569;
+}
+
+.socialLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.socialBtn {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+}

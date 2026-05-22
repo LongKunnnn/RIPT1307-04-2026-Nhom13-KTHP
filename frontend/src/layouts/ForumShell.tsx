@@ -1,10 +1,8 @@
-import { Link, Outlet, history, useLocation } from 'umi';
+import { Link, history, useLocation } from 'umi';
 import { Layout, Input, Button, Space, Dropdown } from 'antd';
 import {
   CommentOutlined,
   SearchOutlined,
-  TeamOutlined,
-  TagsOutlined,
   UserOutlined,
   LogoutOutlined,
   DashboardOutlined,
@@ -16,7 +14,11 @@ import styles from './index.less';
 
 const { Header, Footer, Content } = Layout;
 
-export default function ForumShell() {
+interface ForumShellProps {
+  children: React.ReactNode;
+}
+
+export default function ForumShell({ children }: ForumShellProps) {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const location = useLocation();
 
@@ -31,6 +33,7 @@ export default function ForumShell() {
 
   const userMenu = {
     items: [
+      { key: 'profile', icon: <UserOutlined />, label: <Link to={ROUTES.profile}>Hồ sơ của tôi</Link> },
       ...(isAdmin
         ? [{ key: 'admin', icon: <DashboardOutlined />, label: <Link to={ROUTES.admin.root}>Admin</Link> }]
         : []),
@@ -57,7 +60,7 @@ export default function ForumShell() {
               Câu hỏi của tôi
             </Link>
             <Link to={ROUTES.homeFeed} className={styles.navLink}>
-              <TagsOutlined /> Bảng tin
+              Bảng tin
             </Link>
           </nav>
 
@@ -91,7 +94,7 @@ export default function ForumShell() {
       </Header>
 
       <Content className={styles.content}>
-        <Outlet />
+        {children}
       </Content>
 
       <Footer className={styles.footer}>

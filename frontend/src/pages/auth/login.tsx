@@ -18,10 +18,12 @@ export default function LoginPage() {
       const u = await login(v.email, v.password);
       const state = history.location.state as { from?: string } | undefined;
       const from = state?.from;
-      if (from) {
+      if (from && from.startsWith('/admin') && u.role === 'ADMIN') {
         history.push(from);
       } else if (u.role === 'ADMIN') {
         history.push(ROUTES.admin.root);
+      } else if (from) {
+        history.push(from);
       } else {
         history.push(ROUTES.home);
       }
@@ -46,6 +48,9 @@ export default function LoginPage() {
           <Button type="primary" htmlType="submit" block loading={loading}>
             Đăng nhập
           </Button>
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <Link to={ROUTES.forgotPassword}>Quên mật khẩu?</Link>
+          </div>
         </Form>
         <Typography.Paragraph className={styles.hint}>
           Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn — mật khẩu <strong>{DEMO_PASSWORD}</strong>

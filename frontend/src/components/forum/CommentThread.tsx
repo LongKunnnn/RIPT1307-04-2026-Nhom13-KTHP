@@ -1,20 +1,26 @@
-import { useState } from 'react';
-import { Avatar, Button, Input, Space, Tag, Typography } from 'antd';
-import type { CommentNode } from '@/services/comments/commentService';
-import { commentService } from '@/services/comments/commentService';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNotify } from '@/contexts/NotificationContext';
-import { VoteButtons } from './VoteButtons';
-import { ReportContentButton } from './ReportContentButton';
-import { formatViDate, roleColor, roleLabel } from '@/utils/format';
-import { moderationUserMessage } from '@/utils/moderationMessages';
-import { message } from 'antd';
-import styles from './CommentThread.less';
+import { useState } from "react";
+import { Link } from "umi";
+import { Avatar, Button, Input, Space, Tag, Typography } from "antd";
+import type { CommentNode } from "@/services/comments/commentService";
+import { commentService } from "@/services/comments/commentService";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNotify } from "@/contexts/NotificationContext";
+import { ROUTES } from "@/constants/routes";
+import { VoteButtons } from "./VoteButtons";
+import { ReportContentButton } from "./ReportContentButton";
+import { AcceptAnswerButton } from "./AcceptAnswerButton";
+import { formatViDate, roleColor, roleLabel } from "@/utils/format";
+import { moderationUserMessage } from "@/utils/moderationMessages";
+import { message } from "antd";
+import styles from "./CommentThread.less";
 
 const { Text } = Typography;
 
 interface Props {
   postId: string;
+  postAuthorId: string;
+  postBounty?: number;
+  acceptedCommentId?: string;
   nodes: CommentNode[];
   onUpdated: () => void;
 }
@@ -22,32 +28,48 @@ interface Props {
 function CommentItem({
   node,
   postId,
+  postAuthorId,
+  postBounty,
+  acceptedCommentId,
   depth,
   onUpdated,
 }: {
   node: CommentNode;
   postId: string;
+  postAuthorId: string;
+  postBounty?: number;
+  acceptedCommentId?: string;
   depth: number;
   onUpdated: () => void;
 }) {
   const { user, isAuthenticated } = useAuth();
+  const isPostAuthor = user?.id === postAuthorId;
+  const canAccept =
+    isPostAuthor &&
+    depth === 0 &&
+    !acceptedCommentId &&
+    node.authorId !== postAuthorId &&
+    !node.isAccepted;
   const notify = useNotify();
   const [replyOpen, setReplyOpen] = useState(false);
-  const [replyText, setReplyText] = useState('');
+  const [replyText, setReplyText] = useState("");
   const [score, setScore] = useState(node.voteScore);
 
-  const submitReply = () => {
+  const submitReply = async () => {
     if (!user || !replyText.trim()) return;
-    const c = commentService.add(postId, replyText, node.id, {
+    const c = await commentService.add(postId, replyText, node.id, {
       id: user.id,
       displayName: user.displayName,
       role: user.role,
     });
-    if (c.moderationStatus === 'published') {
-      notify.notifyEmail('Phản hồi mới', `${user.displayName} đã trả lời bình luận của bạn trên diễn đàn.`);
+    if (c.moderationStatus === "published") {
+      notify.notifyEmail(
+        "Phản hồi mới",
+        `${user.displayName} đã trả lời bình luận của bạn trên diễn đàn.`,
+      );
     }
     message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
-    setReplyText('');
+    setReplyText("");
     setReplyOpen(false);
     onUpdated();
   };
@@ -55,13 +77,31 @@ function CommentItem({
   return (
     <div className={styles.item} style={{ marginLeft: depth * 24 }}>
       <div className={styles.row}>
-        <VoteButtons targetType="comment" targetId={node.id} score={score} onChange={setScore} />
+        <VoteButtons
+          targetType="comment"
+          targetId={node.id}
+          score={score}
+          onChange={setScore}
+        />
         <div className={styles.content}>
           <Space align="start">
-            <Avatar style={{ backgroundColor: '#2563eb' }}>{node.authorName.charAt(0)}</Avatar>
+            <Link to={ROUTES.publicProfile(node.authorUsername)}>
+              <Avatar style={{ backgroundColor: "#2563eb" }}>
+                {node.authorName.charAt(0)}
+              </Avatar>
+            </Link>
             <div>
-              <Text strong>{node.authorName}</Text>{' '}
-              <Tag color={roleColor(node.authorRole)}>{roleLabel(node.authorRole)}</Tag>
+              <Link to={ROUTES.publicProfile(node.authorUsername)}>
+                <Text strong>{node.authorName}</Text>
+              </Link>{" "}
+              <Tag color={roleColor(node.authorRole)}>
+                {roleLabel(node.authorRole)}
+              </Tag>
+              {node.isAccepted && (
+                <Tag color="success" style={{ marginLeft: 4 }}>
+                  Đã chấp nhận
+                </Tag>
+              )}
               <div className={styles.body}>{node.body}</div>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {formatViDate(node.createdAt)}
@@ -70,46 +110,86 @@ function CommentItem({
           </Space>
           <Space size="small">
             {isAuthenticated && (
-              <Button type="link" size="small" onClick={() => setReplyOpen((v) => !v)}>
+              <Button
+                type="link"
+                size="small"
+                onClick={() => setReplyOpen((v) => !v)}
+              >
                 Trả lời
               </Button>
             )}
             <ReportContentButton targetType="comment" targetId={node.id} />
+            {canAccept && (
+              <AcceptAnswerButton
+                postId={postId}
+                commentId={node.id}
+                bounty={postBounty}
+                onAccepted={() => onUpdated()}
+              />
+            )}
           </Space>
         </div>
       </div>
       {replyOpen && (
         <div className={styles.replyBox}>
-          <Input.TextArea rows={2} value={replyText} onChange={(e) => setReplyText(e.target.value)} />
-          <Button type="primary" size="small" style={{ marginTop: 8 }} onClick={submitReply}>
+          <Input.TextArea
+            rows={2}
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+          />
+          <Button
+            type="primary"
+            size="small"
+            style={{ marginTop: 8 }}
+            onClick={submitReply}
+          >
             Gửi trả lời
           </Button>
         </div>
       )}
       {node.children.map((child) => (
-        <CommentItem key={child.id} node={child} postId={postId} depth={depth + 1} onUpdated={onUpdated} />
+        <CommentItem
+          key={child.id}
+          node={child}
+          postId={postId}
+          postAuthorId={postAuthorId}
+          postBounty={postBounty}
+          acceptedCommentId={acceptedCommentId}
+          depth={depth + 1}
+          onUpdated={onUpdated}
+        />
       ))}
     </div>
   );
 }
 
-export function CommentThread({ postId, nodes, onUpdated }: Props) {
+export function CommentThread({
+  postId,
+  postAuthorId,
+  postBounty,
+  acceptedCommentId,
+  nodes,
+  onUpdated,
+}: Props) {
   const { user, isAuthenticated } = useAuth();
   const notify = useNotify();
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
 
-  const submit = () => {
+  const submit = async () => {
     if (!user || !text.trim()) return;
-    const c = commentService.add(postId, text, null, {
+    const c = await commentService.add(postId, text, null, {
       id: user.id,
       displayName: user.displayName,
       role: user.role,
     });
-    if (c.moderationStatus === 'published') {
-      notify.notifyEmail('Phản hồi mới', 'Có bình luận mới trên bài viết bạn theo dõi.');
+    if (c.moderationStatus === "published") {
+      notify.notifyEmail(
+        "Phản hồi mới",
+        "Có bình luận mới trên bài viết bạn theo dõi.",
+      );
     }
     message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
-    setText('');
+    setText("");
     onUpdated();
   };
 
@@ -131,7 +211,16 @@ export function CommentThread({ postId, nodes, onUpdated }: Props) {
         <Text type="secondary">Đăng nhập để bình luận.</Text>
       )}
       {nodes.map((n) => (
-        <CommentItem key={n.id} node={n} postId={postId} depth={0} onUpdated={onUpdated} />
+        <CommentItem
+          key={n.id}
+          node={n}
+          postId={postId}
+          postAuthorId={postAuthorId}
+          postBounty={postBounty}
+          acceptedCommentId={acceptedCommentId}
+          depth={0}
+          onUpdated={onUpdated}
+        />
       ))}
     </div>
   );

@@ -1,53 +1,112 @@
-import type { RegisterInput, User } from '@/types';
+import type { RegisterInput, User, UserRole } from "@/types";
 import {
-  getPasswords,
-  getSessionUserId,
-  getUsers,
-  newId,
-  setPasswords,
-  setSessionUserId,
-  setUsers,
-} from '@/services/mock/db';
+  apiFetch,
+  clearTokens,
+  getStoredUser,
+  setStoredUser,
+  setTokens,
+} from "@/services/api/client";
+
+interface AuthResponse {
+  user: any;
+  accessToken: string;
+  refreshToken: string;
+}
+
+function normalizeUser(raw: any): User {
+  const roleMap: Record<string, UserRole> = {
+    admin: "ADMIN",
+    ADMIN: "ADMIN",
+    teacher: "LECTURER",
+    LECTURER: "LECTURER",
+    student: "STUDENT",
+    STUDENT: "STUDENT",
+  };
+  return {
+    ...raw,
+    role: roleMap[String(raw.role)] ?? "STUDENT",
+  };
+}
 
 export const authService = {
   getCurrentUser(): User | null {
-    const id = getSessionUserId();
-    if (!id) return null;
-    return getUsers().find((u) => u.id === id) ?? null;
+    const raw = getStoredUser<User>();
+    return raw ? normalizeUser(raw) : null;
   },
 
-  login(email: string, password: string): User {
-    const user = getUsers().find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) throw new Error('Email hoặc mật khẩu không đúng');
-    if (user.locked) throw new Error('Tài khoản đã bị khóa. Liên hệ quản trị viên.');
-    const passwords = getPasswords();
-    if (passwords[user.id] !== password) throw new Error('Email hoặc mật khẩu không đúng');
-    setSessionUserId(user.id);
+  async login(email: string, password: string): Promise<User> {
+    const data = await apiFetch<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setTokens(data.accessToken, data.refreshToken);
+    setStoredUser(normalizeUser(data.user));
+    return normalizeUser(data.user);
+  },
+
+  async register(input: RegisterInput & { birthday?: string }): Promise<User> {
+    const data = await apiFetch<AuthResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        email: input.email,
+        password: input.password,
+        fullName: input.displayName,
+        role: input.role,
+        faculty: input.faculty,
+        birthday: input.birthday,
+      }),
+    });
+    setTokens(data.accessToken, data.refreshToken);
+    setStoredUser(normalizeUser(data.user));
+    return normalizeUser(data.user);
+  },
+
+  async updateProfile(input: Partial<User>): Promise<User> {
+    const { displayName, ...rest } = input;
+    const data = await apiFetch<User>("/api/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...rest,
+        fullName: displayName,
+      }),
+    });
+    const user = normalizeUser(data);
+    setStoredUser(user);
     return user;
   },
 
-  register(input: RegisterInput): User {
-    const exists = getUsers().some((u) => u.email.toLowerCase() === input.email.toLowerCase());
-    if (exists) throw new Error('Email đã được sử dụng');
-    const user: User = {
-      id: newId('u'),
-      email: input.email.trim(),
-      displayName: input.displayName.trim(),
-      role: input.role,
-      faculty: input.faculty?.trim(),
-      locked: false,
-      createdAt: new Date().toISOString(),
-    };
-    const users = [...getUsers(), user];
-    setUsers(users);
-    const passwords = getPasswords();
-    passwords[user.id] = input.password;
-    setPasswords(passwords);
-    setSessionUserId(user.id);
-    return user;
+  async getPublicProfile(username: string): Promise<User> {
+    const data = await apiFetch<User>(
+      `/api/auth/users/${encodeURIComponent(username)}`,
+    );
+    return normalizeUser(data);
+  },
+
+  async refreshProfile(): Promise<User | null> {
+    try {
+      const user = normalizeUser(await apiFetch<User>("/api/auth/me"));
+      setStoredUser(user);
+      return user;
+    } catch {
+      return null;
+    }
   },
 
   logout() {
-    setSessionUserId(null);
+    clearTokens();
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string; resetToken?: string }> {
+    return apiFetch<{ message: string; resetToken?: string }>("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
   },
 };
