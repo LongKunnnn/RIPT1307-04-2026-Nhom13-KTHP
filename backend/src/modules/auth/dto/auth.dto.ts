@@ -33,3 +33,15 @@ const LoginSchema = z.object({
 export class RegisterDto extends createZodDto(RegisterSchema) {}
 export class LoginDto extends createZodDto(LoginSchema) {}
 export class UpdateProfileDto extends createZodDto(UpdateProfileSchema) {}
+
+const ForgotPasswordSchema = z.object({
+  email: z.string().email('Định dạng email không hợp lệ'),
+});
+
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+});
+
+export class ForgotPasswordDto extends createZodDto(ForgotPasswordSchema) {}
+export class ResetPasswordDto extends createZodDto(ResetPasswordSchema) {}

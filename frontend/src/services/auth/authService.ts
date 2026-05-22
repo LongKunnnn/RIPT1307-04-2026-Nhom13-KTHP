@@ -95,4 +95,18 @@ export const authService = {
   logout() {
     clearTokens();
   },
+
+  async forgotPassword(email: string): Promise<{ message: string; resetToken?: string }> {
+    return apiFetch<{ message: string; resetToken?: string }>("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  },
 };

@@ -48,6 +48,9 @@ export default function LoginPage() {
           <Button type="primary" htmlType="submit" block loading={loading}>
             Đăng nhập
           </Button>
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <Link to={ROUTES.forgotPassword}>Quên mật khẩu?</Link>
+          </div>
         </Form>
         <Typography.Paragraph className={styles.hint}>
           Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn — mật khẩu <strong>{DEMO_PASSWORD}</strong>

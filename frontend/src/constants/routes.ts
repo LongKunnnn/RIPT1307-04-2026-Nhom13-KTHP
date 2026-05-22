@@ -12,6 +12,8 @@ export const ROUTES = {
   questions: '/?tab=mine&section=authored#mine',
   login: '/login',
   register: '/register',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
   askQuestion: '/questions/ask',
   questionDetail: (id: string) => `/questions/${encodeURIComponent(id)}`,
   profile: '/profile',

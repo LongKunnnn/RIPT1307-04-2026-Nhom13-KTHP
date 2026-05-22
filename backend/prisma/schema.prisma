@@ -81,6 +81,8 @@ model User {
   role          UserRole @default(student)
   is_active     Boolean  @default(true)
   reward_points Int      @default(200)
+  reset_password_token   String?  @db.VarChar(255)
+  reset_password_expires DateTime?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
