@@ -32,7 +32,7 @@
     "@vnphu/vn-badwords": "^1.1.1",
     "bcrypt": "^6.0.0",
     "helmet": "^8.1.0",
-    "nestjs-zod": "^5.3.0",
+    "nestjs-zod": "^5.4.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",

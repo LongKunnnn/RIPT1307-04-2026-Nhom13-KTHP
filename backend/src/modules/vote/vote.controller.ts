@@ -1,34 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
 import { VoteService } from './vote.service';
-import { CreateVoteDto } from './dto/create-vote.dto';
-import { UpdateVoteDto } from './dto/update-vote.dto';
+import { VoteDto } from './dto/create-vote.dto';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Bật lên khi ráp Auth tuần 1
 
-@Controller('vote')
+@ApiTags('Votes (Đánh giá)')
+@Controller('votes')
 export class VoteController {
   constructor(private readonly voteService: VoteService) {}
 
   @Post()
-  create(@Body() createVoteDto: CreateVoteDto) {
-    return this.voteService.create(createVoteDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.voteService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.voteService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVoteDto: UpdateVoteDto) {
-    return this.voteService.update(+id, updateVoteDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.voteService.remove(+id);
+  // @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'API dùng chung cho FE: Vote Post hoặc Comment (Value truyền 1 hoặc -1)' })
+  @Post()
+  async handleVote(@Body() data: VoteDto, @Req() req: any) {
+    const userId = req.user?.id || 1; // Hardcode test
+    return this.voteService.handleVote(userId, data.targetId, data.targetType, data.value);
   }
 }
