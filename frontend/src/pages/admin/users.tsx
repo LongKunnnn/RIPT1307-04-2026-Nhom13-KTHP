@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
@@ -31,7 +31,26 @@ export default function AdminUsersPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [form] = Form.useForm<UpsertUserInput>();
-  const data = useMemo(() => adminService.listUsers(), [tick]);
+  const [data, setData] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    setLoadError(null);
+    adminService
+      .listUsers()
+      .then(setData)
+      .catch((e) => {
+        setData([]);
+        setLoadError(e instanceof Error ? e.message : 'Không tải được danh sách người dùng');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, [tick]);
 
   const guardTip = (targetId: string, action: 'delete' | 'lock' | 'demote') => {
     try {
@@ -63,8 +82,8 @@ export default function AdminUsersPage() {
   const save = async () => {
     const v = await form.validateFields();
     try {
-      if (editing) adminService.updateUser(editing.id, v, actorId);
-      else adminService.createUser(v);
+      if (editing) await adminService.updateUser(editing.id, v, actorId);
+      else await adminService.createUser(v);
       message.success('Đã lưu người dùng');
       setOpen(false);
       setTick((t) => t + 1);
@@ -90,9 +109,9 @@ export default function AdminUsersPage() {
           <Switch
             checked={locked}
             disabled={!!lockTip && !locked}
-            onChange={(v) => {
+            onChange={async (v) => {
               try {
-                adminService.setLocked(row.id, v, actorId);
+                await adminService.setLocked(row.id, v, actorId);
                 setTick((t) => t + 1);
                 message.success(v ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
               } catch (e) {
@@ -121,9 +140,13 @@ export default function AdminUsersPage() {
             </Button>
             <Button
               size="small"
-              onClick={() => {
-                adminService.resetPassword(row.id, DEMO_PASSWORD);
-                message.success(`Đã đặt lại mật khẩu: ${DEMO_PASSWORD}`);
+              onClick={async () => {
+                try {
+                  await adminService.resetPassword(row.id, DEMO_PASSWORD);
+                  message.success(`Đã đặt lại mật khẩu: ${DEMO_PASSWORD}`);
+                } catch (e) {
+                  message.error(e instanceof Error ? e.message : 'Lỗi');
+                }
               }}
             >
               Cấp lại MK
@@ -137,9 +160,9 @@ export default function AdminUsersPage() {
             ) : (
               <Popconfirm
                 title="Xóa người dùng?"
-                onConfirm={() => {
+                onConfirm={async () => {
                   try {
-                    adminService.deleteUser(row.id, actorId);
+                    await adminService.deleteUser(row.id, actorId);
                     setTick((t) => t + 1);
                     message.success('Đã xóa người dùng');
                   } catch (e) {
@@ -178,8 +201,21 @@ export default function AdminUsersPage() {
           message="Bảo vệ tài khoản quản trị"
           description="Không thể tự khóa, tự xóa hoặc tự hạ quyền admin. Hệ thống luôn giữ ít nhất một quản trị viên đang hoạt động."
         />
+        {loadError ? (
+          <Alert
+            type="error"
+            showIcon
+            message="Lỗi tải dữ liệu"
+            description={loadError}
+            action={
+              <Button size="small" onClick={load}>
+                Thử lại
+              </Button>
+            }
+          />
+        ) : null}
       </Space>
-      <Table rowKey="id" columns={columns} dataSource={data} pagination={{ pageSize: 8 }} />
+      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={{ pageSize: 8 }} />
       <Modal
         title={editing ? 'Sửa người dùng' : 'Thêm người dùng'}
         open={open}

@@ -1,11 +1,10 @@
 import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from '../decorators/auth.decorators';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  // Inject cái Reflector vào để đọc dữ liệu từ Decorator @Public()
   constructor(private reflector: Reflector) {
     super();
   }
@@ -16,7 +15,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    // Nếu CÓ biển @Public(), không check Token nữa!
     if (isPublic) {
       return true;
     }
@@ -24,10 +22,29 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest<T>(err: any, user: T, info: any): T {
     if (err || !user) {
       throw err || new UnauthorizedException('Bạn cần đăng nhập để thực hiện chức năng này!');
     }
     return user;
+  }
+}
+
+// 🛡️ GUARD BỔ SUNG CỦA FE: Dành cho các route cho phép cả Guest và User truy cập
+@Injectable()
+export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest<{ headers: { authorization?: string } }>();
+    
+    // Nếu Client không gửi token lên -> Cho qua luôn (truy cập với tư cách Khách)
+    if (!request.headers.authorization) {
+      return true;
+    }
+    
+    return super.canActivate(context);
+  }
+
+  handleRequest<T>(_err: any, user: T): T | null {
+    return user ?? null;
   }
 }

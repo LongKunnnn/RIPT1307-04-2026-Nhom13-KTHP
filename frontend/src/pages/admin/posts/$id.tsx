@@ -1,17 +1,39 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'umi';
-import { Card, Tag, Typography, Empty, Divider } from 'antd';
+import { Card, Tag, Typography, Empty, Divider, Spin } from 'antd';
 import { postService } from '@/services/posts/postService';
-import { commentService } from '@/services/comments/commentService';
+import { commentService, type CommentNode } from '@/services/comments/commentService';
 import { AdminCommentList } from '@/components/admin/AdminCommentList';
 import { ROUTES } from '@/constants/routes';
 import { formatViDate, roleColor, roleLabel } from '@/utils/format';
+import type { Post } from '@/types';
 
 const { Title, Paragraph } = Typography;
 
 export default function AdminPostDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const post = id ? postService.getByIdAdmin(id) : null;
-  const comments = id ? commentService.listByPost(id, { includeNonPublic: true }) : [];
+  const [post, setPost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<CommentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    Promise.all([
+      postService.getByIdAdmin(id),
+      commentService.listByPost(id, { includeNonPublic: true }),
+    ])
+      .then(([p, c]) => {
+        setPost(p);
+        setComments(c);
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <Spin style={{ display: 'block', margin: '48px auto' }} />;
 
   if (!post) {
     return <Empty description="Không tìm thấy bài viết" />;

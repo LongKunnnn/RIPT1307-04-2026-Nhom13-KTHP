@@ -6,7 +6,7 @@ import AdminShell from './AdminShell';
 
 export default function RootLayout() {
   const { pathname } = useLocation();
-  const isAdmin = pathname.startsWith('/admin');
+  const isAdminRoute = pathname.startsWith('/admin');
 
   return (
     <ConfigProvider
@@ -21,10 +21,14 @@ export default function RootLayout() {
         },
       }}
     >
-      {isAdmin ? (
-        <AdminShell />
+      {isAdminRoute ? (
+        <AdminShell>
+          <Outlet />
+        </AdminShell>
       ) : (
-        <ForumShell />
+        <ForumShell>
+          <Outlet />
+        </ForumShell>
       )}
     </ConfigProvider>
   );
