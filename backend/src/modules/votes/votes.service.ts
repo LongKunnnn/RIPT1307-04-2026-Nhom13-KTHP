@@ -30,7 +30,6 @@ export class VotesService {
     const targetType = dto.targetType as TargetType;
     let authorId: number;
 
-    // 1. Lấy thông tin tác giả để cộng/trừ điểm thưởng (Bỏ upvote_count và downvote_count đi vì DB không có)
     if (targetType === 'post') {
       const post = await this.prisma.post.findUnique({
         where: { id: targetId, deleted_at: null },
@@ -47,6 +46,14 @@ export class VotesService {
       authorId = comment.author_id;
     }
 
+    //Tự vote cho chính mình -> Khóa điểm
+    let isShadowBanned = user.id === authorId; 
+
+    // 2. Thuật toán Check Var: Quét xem có phải nick clone bơm điểm không
+    if (!isShadowBanned) {
+      isShadowBanned = await this.checkCloneActivity(user.id, authorId);
+    }
+
     const existingVote = await this.prisma.vote.findUnique({
       where: {
         user_id_target_id_target_type: {
@@ -57,42 +64,77 @@ export class VotesService {
       },
     });
 
-    // 2. Dùng Transaction để xử lý Vote và Điểm uy tín
     await this.prisma.$transaction(async (tx) => {
       // TH1: Chưa vote bao giờ
       if (!existingVote) {
         await tx.vote.create({
           data: { user_id: user.id, target_id: targetId, target_type: targetType, vote_value: value },
         });
-        await this.updateAuthorPoints(tx, authorId, value === 1 ? POINT_UPVOTE : POINT_DOWNVOTE);
+        
+        const delta = isShadowBanned ? 0 : (value === 1 ? POINT_UPVOTE : POINT_DOWNVOTE);
+        await this.updateAuthorPoints(tx, authorId, delta);
         return;
       }
 
-      // TH2: Bấm lại nút cũ -> Hủy vote
       if (existingVote.vote_value === value) {
         await tx.vote.delete({ where: { id: existingVote.id } });
-        await this.updateAuthorPoints(tx, authorId, value === 1 ? -POINT_UPVOTE : -POINT_DOWNVOTE);
+        const delta = isShadowBanned ? 0 : (value === 1 ? -POINT_UPVOTE : -POINT_DOWNVOTE);
+        await this.updateAuthorPoints(tx, authorId, delta);
         return;
       }
 
-      // TH3: Đảo chiều vote
       await tx.vote.update({
         where: { id: existingVote.id },
         data: { vote_value: value },
       });
-      const pointDelta = value === 1 
+      
+      let pointDelta = value === 1 
         ? (Math.abs(POINT_DOWNVOTE) + POINT_UPVOTE) 
         : -(POINT_UPVOTE + Math.abs(POINT_DOWNVOTE));
+      
+      if (isShadowBanned) pointDelta = 0; // Đóng băng điểm nếu là clone
+
       await this.updateAuthorPoints(tx, authorId, pointDelta);
     });
 
-    // 3. Tính điểm thực tế trả về cho FE bằng hàm chuẩn
     const score = await sumVoteScore(this.prisma, targetId, dto.targetType);
     return { score };
   }
 
+  // ==========================================
+  // HÀM KIỂM TRA GIAN LẬN: THE CLONE DETECTOR
+  // ==========================================
+  private async checkCloneActivity(voterId: number, authorId: number): Promise<boolean> {
+    const totalVotes = await this.prisma.vote.count({
+      where: { user_id: voterId }
+    });
+
+    // Nếu mới đi vote dạo dưới 5 lần thì cho qua
+    if (totalVotes <= 5) return false; 
+
+
+    const [authorPosts, authorComments] = await Promise.all([
+      this.prisma.post.findMany({ where: { author_id: authorId }, select: { id: true } }),
+      this.prisma.comment.findMany({ where: { author_id: authorId }, select: { id: true } })
+    ]);
+
+    const postIds = authorPosts.map(p => p.id);
+    const commentIds = authorComments.map(c => c.id);
+
+    const votesForThisAuthor = await this.prisma.vote.count({
+      where: {
+        user_id: voterId,
+        OR: [
+          { target_type: 'post', target_id: { in: postIds } },
+          { target_type: 'comment', target_id: { in: commentIds } }
+        ]
+      }
+    });
+
+    return (votesForThisAuthor / totalVotes) >= 0.8;
+  }
   private async updateAuthorPoints(tx: any, authorId: number, delta: number) {
-    if (delta === 0) return;
+    if (delta === 0) return; 
     await tx.user.update({
       where: { id: authorId },
       data: { reward_points: { increment: delta } },

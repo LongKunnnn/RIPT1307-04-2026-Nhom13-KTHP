@@ -193,4 +193,33 @@ export class AdminController {
   deletePost(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.deletePost(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Get('admin/suspicious-votes')
+  @ApiOperation({ summary: 'Lấy danh sách các tài khoản nghi ngờ buff bẩn điểm uy tín' })
+  getSuspiciousVotes() {
+    return this.adminService.getSuspiciousVotes();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Post('admin/users/:id/reset-points')
+  @ApiOperation({ summary: 'Trừng phạt: Reset điểm uy tín của kẻ chủ mưu về 0' })
+  async resetPoints(@Param('id', ParseIntPipe) id: number) {
+    await this.adminService.resetPoints(id);
+    return { success: true, message: 'Đã reset điểm uy tín thành công' };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Post('admin/users/:id/ban')
+  @ApiOperation({ summary: 'Trừng phạt: Khóa vĩnh viễn tài khoản clone' })
+  async banUser(@Param('id', ParseIntPipe) id: number) {
+    await this.adminService.banUser(id);
+    return { success: true, message: 'Đã khóa tài khoản thành công' };
+  }
 }
