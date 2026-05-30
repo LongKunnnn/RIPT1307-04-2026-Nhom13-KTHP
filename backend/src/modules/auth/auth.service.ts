@@ -9,8 +9,15 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  UpdateProfileDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -197,7 +204,98 @@ export class AuthService {
   }
 
   // ==============================
-  // 3. LÀM MỚI TOKEN (REFRESH)
+  // 3. QUÊN MẬT KHẨU (FORGOT PASSWORD)
+  // ==============================
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      // Vì lý do bảo mật, không báo lỗi nếu email không tồn tại
+      return {
+        message:
+          'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+      };
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        reset_password_token: resetTokenHash,
+        reset_password_expires: new Date(Date.now() + 3600000), // 1 giờ sau
+      },
+    });
+
+    // MÔ PHỎNG GỬI EMAIL: Log token ra console
+    console.log(
+      `[FORGOT PASSWORD] Reset Token for ${dto.email}: ${resetToken}`,
+    );
+
+    return {
+      message:
+        'Nếu email tồn tại trong hệ thống, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+      // Demo purposes only: return token in response if in development
+      resetToken:
+        this.configService.get('NODE_ENV') === 'development'
+          ? resetToken
+          : undefined,
+    };
+  }
+
+  // ==============================
+  // 4. ĐẶT LẠI MẬT KHẨU (RESET PASSWORD)
+  // ==============================
+  async resetPassword(dto: ResetPasswordDto) {
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(dto.token)
+      .digest('hex');
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        reset_password_token: resetTokenHash,
+        reset_password_expires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn.');
+    }
+
+    // KIỂM TRA MẬT KHẨU MỚI KHÔNG TRÙNG MẬT KHẨU CŨ
+    const isSamePassword = await bcrypt.compare(
+      dto.password,
+      user.password_hash,
+    );
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'Mật khẩu mới không được trùng với mật khẩu hiện tại.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password_hash: hashedPassword,
+        reset_password_token: null,
+        reset_password_expires: null,
+      },
+    });
+
+    return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' };
+  }
+
+  // ==============================
+  // 5. LÀM MỚI TOKEN (REFRESH)
   // ==============================
   async refresh(refreshToken: string) {
     try {

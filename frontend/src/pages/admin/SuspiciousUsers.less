@@ -1,0 +1,53 @@
+@import (reference) '@/styles/theme.less';
+
+.adminContainer {
+  padding: 24px clamp(12px, 2.5vw, 28px);
+  max-width: min(1680px, calc(100vw - 32px));
+  margin: 0 auto;
+  flex: 1;
+}
+
+.headerSection {
+  margin-bottom: 24px;
+  background: @surface;
+  padding: 24px;
+  border-radius: @radius-md;
+  border: 1px solid @border;
+  box-shadow: @shadow-soft;
+
+  h2 {
+    margin: 0 0 8px 0;
+    color: #f5222d; // Màu đỏ cảnh báo
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: @muted;
+    font-size: 14px;
+  }
+}
+
+.tableSection {
+  background: @surface;
+  border-radius: @radius-md;
+  border: 1px solid @border;
+  padding: 20px;
+  box-shadow: @shadow-soft;
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  strong {
+    color: @text;
+    font-size: 15px;
+  }
+
+  small {
+    color: @muted;
+    font-size: 12px;
+  }
+}

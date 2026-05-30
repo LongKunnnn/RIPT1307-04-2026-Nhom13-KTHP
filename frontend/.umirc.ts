@@ -6,6 +6,7 @@ export default defineConfig({
     { path: "/login", component: "auth/login" },
     { path: "/register", component: "auth/register" },
     { path: "/forgot-password", component: "auth/forgot-password" },
+    { path: "/reset-password", component: "auth/reset-password" },
     { path: "/questions/ask", component: "questions/ask" },
     { path: "/questions/:id", component: "questions/$id" },
     { path: "/profile", component: "profile/index" },
@@ -15,6 +16,7 @@ export default defineConfig({
     { path: "/admin/posts/:id", component: "admin/posts/$id" },
     { path: "/admin/users", component: "admin/users" },
     { path: "/admin/moderation", component: "admin/moderation" },
+    { path: "/admin/check-var", component: "admin/SuspiciousUsers" },
   ],
   npmClient: 'npm',
 });

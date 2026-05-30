@@ -16,7 +16,7 @@ interface Props {
 export function LeaderboardPanel({ tags }: Props) {
   const [scope, setScope] = useState<LeaderboardScope>('global');
   const [tag, setTag] = useState<string | undefined>();
-  const [rows, setRows] = useState<LeaderboardEntry[]>([]);
+  const [rows, setRows] = useState<any[]>([]); // Để any[] để nó hứng mọi loại field từ BE
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -76,23 +76,44 @@ export function LeaderboardPanel({ tags }: Props) {
         locale={{
           emptyText: scope === 'tag' && !tag ? 'Chọn một thẻ để xem bảng xếp hạng' : 'Chưa có dữ liệu',
         }}
-        renderItem={(u, i) => (
-          <List.Item className={styles.row}>
-            <Space align="start" size={10}>
-              <span className={styles.rank}>{i + 1}</span>
-              <Avatar size={36} style={{ backgroundColor: i < 3 ? '#2563eb' : '#94a3b8' }}>
-                {u.name.charAt(0)}
-              </Avatar>
-              <div>
-                <Text strong>{u.name}</Text>{' '}
-                <Tag color={roleColor(u.role)} style={{ fontSize: 11 }}>
-                  {roleLabel(u.role)}
-                </Tag>
-                <div className={styles.points}>{u.points.toLocaleString('vi-VN')} điểm</div>
-              </div>
-            </Space>
-          </List.Item>
-        )}
+        renderItem={(u, i) => {
+          
+          // Quét tìm tên, không có thì cho làm Ẩn danh
+          const displayName = u.name || u.full_name || u.username || 'Ẩn danh';
+          
+   
+          const displayPoints = u.points ?? u.reward_points ?? 0;
+          
+          const userRole = u.role || 'student'; 
+          
+          const avatarChar = String(displayName).charAt(0).toUpperCase();
+          
+          // 5. Nếu có avatar_url thật từ BE thì ưu tiên hiện luôn
+          const avatarUrl = u.avatar_url || u.avatarUrl;
+
+          return (
+            <List.Item className={styles.row}>
+              <Space align="start" size={10}>
+                <span className={styles.rank}>{i + 1}</span>
+                <Avatar 
+                  src={avatarUrl} 
+                  size={36} 
+                  style={{ backgroundColor: i < 3 ? '#2563eb' : '#94a3b8' }}
+                >
+                  {/* Nếu không có src (ảnh), nó sẽ tự fallback về chữ cái này */}
+                  {avatarChar}
+                </Avatar>
+                <div>
+                  <Text strong>{displayName}</Text>{' '}
+                  <Tag color={roleColor(userRole)} style={{ fontSize: 11 }}>
+                    {roleLabel(userRole)}
+                  </Tag>
+                  <div className={styles.points}>{Number(displayPoints).toLocaleString('vi-VN')} điểm</div>
+                </div>
+              </Space>
+            </List.Item>
+          );
+        }}
       />
     </Card>
   );

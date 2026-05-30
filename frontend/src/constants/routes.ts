@@ -13,6 +13,7 @@ export const ROUTES = {
   login: '/login',
   register: '/register',
   forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
   askQuestion: '/questions/ask',
   questionDetail: (id: string) => `/questions/${encodeURIComponent(id)}`,
   profile: '/profile',
@@ -23,5 +24,6 @@ export const ROUTES = {
     postDetail: (id: string) => `/admin/posts/${encodeURIComponent(id)}`,
     users: '/admin/users',
     moderation: '/admin/moderation',
+    checkVar: '/admin/check-var'
   },
 } as const;

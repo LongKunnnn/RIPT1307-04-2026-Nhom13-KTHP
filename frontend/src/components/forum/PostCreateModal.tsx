@@ -1,4 +1,4 @@
-import { Form, Input, InputNumber, Modal, Select } from 'antd';
+import { Form, Input, InputNumber, Modal, Select, message } from 'antd';
 import type { CreatePostInput, Post } from '@/types';
 import { postService } from '@/services/posts/postService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,7 +34,15 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
   }, [open, editPost, form]);
 
   const handleOk = async () => {
-    const values = await form.validateFields();
+    let values;
+    try {
+      // 1. Check lỗi hiển thị trên Form (Frontend)
+      values = await form.validateFields();
+    } catch (e) {
+      // Nếu user nhập sai rules của antd (ví dụ chưa đủ min: 12), form tự đỏ, không cần làm gì thêm
+      return; 
+    }
+
     if (!user) return;
 
     const payload = {
@@ -45,23 +53,28 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
       bounty: values.bounty ?? 0,
     };
 
-    if (editPost) {
-      const updated = await postService.update(editPost.id, payload);
-      notify.success('Đã cập nhật bài viết');
-      onClose();
-      onCreated(updated.id);
-    } else {
-      const post = await postService.create(payload, {
-        id: user.id,
-        displayName: user.displayName,
-        role: user.role,
-      });
-      if (post.moderationStatus === 'published') {
-        notify.notifyEmail('Bài đăng mới', `Có bài mới: "${post.title}" — thông báo đã gửi (giả lập).`);
+    try {
+      if (editPost) {
+        const updated = await postService.update(editPost.id, payload);
+        notify.success('Đã cập nhật bài viết');
+        onClose();
+        onCreated(updated.id);
+      } else {
+        const post = await postService.create(payload, {
+          id: user.id,
+          displayName: user.displayName,
+          role: user.role,
+        });
+        if (post.moderationStatus === 'published') {
+          notify.notifyEmail('Bài đăng mới', `Có bài mới: "${post.title}" — thông báo đã gửi (giả lập).`);
+        }
+        notify.success(moderationUserMessage(post.moderationStatus, post.moderationFlags));
+        onClose();
+        if (post.moderationStatus === 'published') onCreated(post.id);
       }
-      notify.success(moderationUserMessage(post.moderationStatus, post.moderationFlags));
-      onClose();
-      if (post.moderationStatus === 'published') onCreated(post.id);
+    } catch (error: any) {
+      console.error('Lỗi từ Backend:', error);
+      message.error('Dữ liệu gửi đi bị thiếu hoặc sai định dạng. Kiểm tra lại nhé!');
     }
   };
 

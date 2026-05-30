@@ -6,6 +6,7 @@ export function getApiBaseUrl(): string {
   // Trả về đúng gốc localhost:3000 thôi, vì các hàm dưới kia đã tự cộng thêm /api rồi
   let baseUrl = process.env.UMI_APP_API_BASE_URL || 'http://localhost:3000';
 
+
   // Xóa gạch chéo ở cuối (nếu có) để lúc cộng chuỗi không bị lỗi //
   if (baseUrl.endsWith('/')) {
     baseUrl = baseUrl.slice(0, -1);
@@ -135,6 +136,7 @@ export async function apiFetch<T>(
     window.location.href = '/login';
     // Trả về một Promise treo vĩnh viễn để chặn cái "throw ApiError" ở dưới nổ tung
     return new Promise(() => { }) as Promise<T>;
+
   }
 
   if (!res.ok) {

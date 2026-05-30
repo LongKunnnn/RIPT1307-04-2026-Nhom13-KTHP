@@ -1,48 +1,41 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-const ListPostsSchema = z.object({
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(10),
+// 1. Lọc Query Params cho API Lấy danh sách bài
+export const ListPostsQuerySchema = z.object({
+  page: z.preprocess((val) => Number(val) || 1, z.number().min(1).default(1)),
+  pageSize: z.preprocess((val) => Number(val) || 10, z.number().min(1).max(50).default(10)),
   search: z.string().optional(),
   tag: z.string().optional(),
-  sort: z.enum(['newest', 'active', 'bounty', 'unanswered', 'rating']).optional().default('newest'),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-  authorId: z.coerce.number().int().optional(),
-  includeNonPublic: z.coerce.boolean().optional(),
+  difficulty: z.enum(['beginner', 'medium', 'hard', 'expert']).optional(),
+  sort: z.enum(['newest', 'active', 'unanswered', 'rating', 'bounty']).optional(),
+  authorId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().optional()),
+  includeNonPublic: z.preprocess((val) => val === 'true', z.boolean().optional()),
 });
+export class ListPostsQueryDto extends createZodDto(ListPostsQuerySchema) {}
 
-const CreatePostSchema = z.object({
-  title: z.string().min(5).max(255),
-  body: z.string().min(10),
-  tags: z.array(z.string().min(1)).max(10).default([]),
-  bounty: z.coerce.number().int().min(0).max(10000).optional().default(0),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional().default('medium'),
+// 2. Body tạo bài viết mới
+export const CreatePostSchema = z.object({
+  title: z.string().min(5, 'Tiêu đề bài viết phải từ 5 ký tự'),
+  body: z.string().min(10, 'Nội dung bài viết quá ngắn'),
+  tags: z.array(z.string()).min(1, 'Phải có ít nhất 1 tag').max(5, 'Chỉ được tối đa 5 tag'),
+  difficulty: z.enum(['beginner', 'medium', 'hard', 'expert']).optional(),
+  bounty: z.number().min(0, 'Điểm thưởng không được âm').optional(),
 });
-
-const RatePostSchema = z.object({
-  stars: z.coerce.number().int().min(1).max(5),
-});
-
-const AcceptAnswerSchema = z.object({
-  commentId: z.coerce.number().int().positive(),
-});
-
-const UpdateModerationSchema = z.object({
-  status: z.enum(['published', 'pending', 'hidden']),
-  note: z.string().optional(),
-});
-
-const UpdatePostSchema = z.object({
-  title: z.string().min(5).max(255).optional(),
-  body: z.string().min(10).optional(),
-  tags: z.array(z.string().min(1)).max(10).optional(),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-});
-
-export class ListPostsQueryDto extends createZodDto(ListPostsSchema) {}
 export class CreatePostDto extends createZodDto(CreatePostSchema) {}
+
+// 3. Body sửa bài (Cho phép bỏ trống các trường)
+export const UpdatePostSchema = CreatePostSchema.partial();
 export class UpdatePostDto extends createZodDto(UpdatePostSchema) {}
-export class UpdateModerationDto extends createZodDto(UpdateModerationSchema) {}
+
+// 4. Body đánh giá sao
+export const RatePostSchema = z.object({
+  stars: z.number().min(1, 'Đánh giá thấp nhất là 1 sao').max(5, 'Đánh giá cao nhất là 5 sao'),
+});
 export class RatePostDto extends createZodDto(RatePostSchema) {}
+
+// 5. Body chọn câu trả lời đúng
+export const AcceptAnswerSchema = z.object({
+  commentId: z.number({ message: 'ID bình luận không được để trống' }).min(1, 'ID bình luận không hợp lệ'),
+});
 export class AcceptAnswerDto extends createZodDto(AcceptAnswerSchema) {}

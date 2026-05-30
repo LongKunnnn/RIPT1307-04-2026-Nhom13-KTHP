@@ -1,10 +1,12 @@
-import { apiFetch, buildQuery } from '@/services/api/client';
+import { apiFetch } from '@/services/api/client';
 
 export const followService = {
+  // Đã gắn thêm /posts/ vào URL
   async isFollowing(userId: string, postId: string): Promise<boolean> {
     void userId;
     try {
-      return await apiFetch<boolean>(`/api/follows/${encodeURIComponent(postId)}/status`);
+      const res = await apiFetch<{ isFollowing: boolean }>(`/api/follows/posts/${encodeURIComponent(postId)}/check`);
+      return res.isFollowing;
     } catch {
       return false;
     }
@@ -12,13 +14,14 @@ export const followService = {
 
   async toggle(userId: string, postId: string): Promise<boolean> {
     void userId;
-    return apiFetch<boolean>(`/api/follows/${encodeURIComponent(postId)}/toggle`, { method: 'POST' });
+    return apiFetch<boolean>(`/api/follows/posts/${encodeURIComponent(postId)}/toggle`, { method: 'POST' });
   },
 
   async getFollowedPostIds(userId: string): Promise<string[]> {
     void userId;
     try {
-      return await apiFetch<string[]>('/api/follows/mine/ids');
+      const res = await apiFetch<{ followedPostIds: string[] }>('/api/follows/posts/me/ids');
+      return res.followedPostIds;
     } catch {
       return [];
     }
@@ -27,7 +30,8 @@ export const followService = {
   async countFollowed(userId: string): Promise<number> {
     void userId;
     try {
-      return await apiFetch<number>('/api/follows/mine/count');
+      const res = await apiFetch<{ totalFollowed: number }>('/api/follows/posts/me/count');
+      return res.totalFollowed;
     } catch {
       return 0;
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'umi';
-import { Button, Form, Input, Alert } from 'antd';
+import { Button, Card, Form, Input, Typography, Alert, Space } from 'antd';
+import { authService } from '@/services/auth/authService';
 import { ROUTES } from '@/constants/routes';
 import styles from './auth.less';
 
@@ -8,17 +9,22 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoToken, setDemoToken] = useState('');
+
 
   const onFinish = async (v: { email: string }) => {
     setLoading(true);
     setError('');
     setSuccess('');
     try {
-      // Simulate API call for password reset since backend might not have this endpoint yet
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setSuccess('Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu vào hòm thư của bạn.');
+      const res = await authService.forgotPassword(v.email);
+      setSuccess(res.message);
+      if (res.resetToken) {
+        setDemoToken(res.resetToken);
+      }
     } catch (e) {
-      setError('Có lỗi xảy ra. Vui lòng thử lại.');
+      setError(e instanceof Error ? e.message : 'Yêu cầu thất bại');
+
     } finally {
       setLoading(false);
     }
@@ -26,44 +32,60 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.splitContainer}>
-        <div className={styles.leftPane}>
-          <div className={styles.logoBox}>CLASSIC DESIGNS</div>
-        </div>
-        <div className={styles.rightPane}>
-          <div className={styles.header}>
-            <h1 className={styles.title}>Reset Password</h1>
-            <div className={styles.switchPageWrapper}>
-               Back to <Link to={ROUTES.login}>Sign In</Link>
-            </div>
-          </div>
+      <Card title="Quên mật khẩu" className={styles.card}>
+        <Typography.Paragraph>
+          Vui lòng nhập email của bạn. Chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu nếu email tồn tại trong hệ thống.
+        </Typography.Paragraph>
 
-          <div style={{ marginBottom: 30, color: '#4b5563', fontSize: 15, lineHeight: 1.6 }}>
-            Enter your email address and we'll send you a link to reset your password.
-          </div>
+        {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
+        {success && <Alert type="success" message={success} showIcon style={{ marginBottom: 16 }} />}
 
-          {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 20, borderRadius: 8 }} />}
-          {success && <Alert type="success" message={success} showIcon style={{ marginBottom: 20, borderRadius: 8 }} />}
-          
-          <Form layout="vertical" onFinish={onFinish} size="large" requiredMark={false}>
-            <Form.Item 
-              name="email" 
-              label={<span className={styles.formLabel}>Email Address</span>} 
-              rules={[{ required: true, type: 'email', message: 'Vui lòng nhập email hợp lệ!' }]}
-              style={{ marginBottom: 24 }}
+        {!success ? (
+          <Form layout="vertical" onFinish={onFinish}>
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: 'Vui lòng nhập email' },
+                { type: 'email', message: 'Định dạng email không hợp lệ' },
+              ]}
             >
-              <Input placeholder="name@example.com" />
+              <Input placeholder="example@svforum.vn" />
             </Form.Item>
-
-            <Form.Item style={{ marginTop: 32, marginBottom: 0 }}>
-              <Button type="primary" htmlType="submit" block loading={loading} className={styles.submitBtn}>
-                Send Reset Link
-              </Button>
-            </Form.Item>
+            <Button type="primary" htmlType="submit" block loading={loading}>
+              Gửi yêu cầu
+            </Button>
           </Form>
+        ) : (
+          <div style={{ marginTop: 16 }}>
+            {demoToken && (
+              <Alert
+                type="info"
+                message="Demo Mode: Reset Token"
+                description={
+                  <div>
+                    <p>Vì đây là môi trường demo, token đã được trả về trực tiếp:</p>
+                    <code>{demoToken}</code>
+                    <div style={{ marginTop: 8 }}>
+                      <Link to={`${ROUTES.resetPassword}?token=${demoToken}`}>
+                        <Button type="link" size="small">Đi đến trang đặt lại mật khẩu</Button>
+                      </Link>
+                    </div>
+                  </div>
+                }
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            <Link to={ROUTES.login}>Quay lại đăng nhập</Link>
+          </div>
+        )}
 
-        </div>
-      </div>
+        {!success && (
+          <div style={{ marginTop: 16 }}>
+            <Link to={ROUTES.login}>Quay lại đăng nhập</Link>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
