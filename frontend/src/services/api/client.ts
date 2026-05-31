@@ -3,7 +3,19 @@ const REFRESH_KEY = 'svforum_refresh_token';
 const USER_KEY = 'svforum_user';
 
 export function getApiBaseUrl(): string {
-  return process.env.UMI_APP_API_BASE_URL || 'http://localhost:3000';
+  // Trả về đúng gốc localhost:3000 thôi, vì các hàm dưới kia đã tự cộng thêm /api rồi
+  let baseUrl = process.env.UMI_APP_API_BASE_URL || 'http://localhost:3000';
+  
+  // Xóa gạch chéo ở cuối (nếu có) để lúc cộng chuỗi không bị lỗi //
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+  // Xóa luôn chữ /api ở cuối (nếu trong .env lỡ khai báo thừa)
+  if (baseUrl.endsWith('/api')) {
+    baseUrl = baseUrl.slice(0, -4);
+  }
+  
+  return baseUrl;
 }
 
 export function getAccessToken(): string | null {
@@ -44,7 +56,8 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  const res = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
+  // Base URL đã có sẵn /api, nên đoạn này chỉ cần gọi /auth/refresh
+  const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -68,7 +81,6 @@ export class ApiError extends Error {
   }
 }
 
-/** Parse NestJS `GlobalExceptionFilter` body: `{ error: string | { message } }` và các dạng `message` phẳng. */
 function messageFromErrorBody(body: unknown): string | undefined {
   if (!body || typeof body !== 'object') return undefined;
   const o = body as Record<string, unknown>;
@@ -110,11 +122,19 @@ export async function apiFetch<T>(
 
   const res = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
 
-  if (res.status === 401 && retry) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      return apiFetch<T>(path, options, false);
+  // XỬ LÝ 401 CHỐNG VĂNG MÀN HÌNH ĐỎ
+  if (res.status === 401) {
+    if (retry) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        return apiFetch<T>(path, options, false);
+      }
     }
+    // Hết cứu vãn -> Xóa token cũ, đá về Login êm ái
+    clearTokens();
+    window.location.href = '/login'; 
+    // Trả về một Promise treo vĩnh viễn để chặn cái "throw ApiError" ở dưới nổ tung
+    return new Promise(() => {}) as Promise<T>;
   }
 
   if (!res.ok) {

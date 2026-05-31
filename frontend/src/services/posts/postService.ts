@@ -58,8 +58,9 @@ export const postService = {
 
   async listFollowed(userId: string, query: ListPostsQuery = {}): Promise<PaginatedResult<Post>> {
     void userId;
+    // Đã đổi sang đúng URL lấy danh sách bài đã lưu của BE
     return apiFetch<PaginatedResult<Post>>(
-      `/api/follows/mine/posts${buildQuery({
+      `/api/follows/posts/me/list${buildQuery({
         page: query.page,
         pageSize: query.pageSize,
       })}`,
@@ -136,7 +137,22 @@ export const postService = {
   },
 
   async getTopContributors(limit = 4): Promise<TopContributor[]> {
-    return apiFetch<TopContributor[]>(`/api/users/top-contributors${buildQuery({ limit })}`);
+    try {
+      const res = await apiFetch<any>(`/api/leaderboard${buildQuery({ limit })}`);
+      
+      const users = Array.isArray(res) ? res : (res?.data || []);
+
+      return users.map((u: any) => ({
+        // nếu null hết thì cho chữ 'Ẩn danh'
+        // Đảm bảo lúc nào cũng có 1 chuỗi string để UI nó gọi được hàm charAt(0)
+        name: u.full_name || u.fullName || u.username || u.userName || 'Ẩn danh',
+        role: 'student',
+        points: u.reward_points || u.rewardPoints || 0
+      }));
+    } catch (error) {
+      console.error("Lỗi khi lấy Leaderboard:", error);
+      return []; // Nếu sập mạng cũng không làm chết UI
+    }
   },
 
   async rate(postId: string, stars: number) {

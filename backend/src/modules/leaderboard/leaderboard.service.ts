@@ -1,70 +1,56 @@
 import { Injectable } from '@nestjs/common';
-import { ModerationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { difficultyWeight } from '../../common/utils/difficulty';
-import { toFrontendRole } from '../../common/utils/helpers';
-
-export type LeaderboardScope = 'global' | 'tag';
 
 @Injectable()
 export class LeaderboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async getLeaderboard(scope: LeaderboardScope, tag?: string, limit = 8) {
-    const users = await this.prisma.user.findMany({
-      where: { is_active: true },
-      select: {
-        id: true,
-        full_name: true,
-        role: true,
-        reward_points: true,
+  async getLeaderboard(scope: 'global' | 'tag' = 'global', tag?: string, limit: number = 10) {
+    // 1. Nếu lấy Top Global (Toàn cầu) -> Dùng đúng logic gốc của mày
+    if (scope === 'global' || !tag) {
+      return this.prisma.user.findMany({
+        take: limit,
+        orderBy: {
+          reward_points: 'desc', // Sắp xếp theo điểm thưởng từ cao xuống thấp
+        },
+        select: {
+          id: true,
+          username: true,
+          full_name: true,
+          avatar_url: true,
+          faculty: true,
+          reward_points: true,
+        },
+      });
+    }
+
+    // 2. Nếu lấy Top theo Tag (FE yêu cầu)
+    // Lấy những user CÓ BÀI VIẾT thuộc Tag đó, và vẫn xếp hạng theo điểm
+    return this.prisma.user.findMany({
+      take: limit,
+      where: {
         posts: {
-          where: { deleted_at: null, moderation_status: ModerationStatus.published },
-          select: {
-            avg_rating: true,
-            rating_count: true,
-            difficulty: true,
-            post_tags: { select: { tag: { select: { name: true } } } },
+          some: {
+            post_tags: {
+              some: {
+                tag: { name: tag },
+              },
+            },
+            deleted_at: null, // Chỉ tính bài viết chưa bị xóa
           },
         },
-        comments: {
-          where: { deleted_at: null, parent_id: null, is_accepted: true },
-          select: { id: true },
-        },
+      },
+      orderBy: {
+        reward_points: 'desc',
+      },
+      select: {
+        id: true,
+        username: true,
+        full_name: true,
+        avatar_url: true,
+        faculty: true,
+        reward_points: true,
       },
     });
-
-    const scored = users.map((u) => {
-      const postsInScope =
-        scope === 'tag' && tag?.trim()
-          ? u.posts.filter((p) => p.post_tags.some((pt) => pt.tag.name === tag.trim()))
-          : u.posts;
-
-      const reputation = postsInScope.reduce((sum, p) => {
-        const w = difficultyWeight(p.difficulty);
-        return sum + p.avg_rating * p.rating_count * w;
-      }, 0);
-
-      const acceptedAnswers = scope === 'global' ? u.comments.length : 0;
-      const points = Math.round(
-        (scope === 'global' ? u.reward_points : 0) + reputation + acceptedAnswers * 12,
-      );
-
-      return {
-        userId: String(u.id),
-        name: u.full_name,
-        role: toFrontendRole(u.role),
-        points,
-        rewardPoints: u.reward_points,
-        reputation: Math.round(reputation),
-        acceptedAnswers,
-        ratedPosts: postsInScope.filter((p) => p.rating_count > 0).length,
-      };
-    });
-
-    return scored
-      .filter((u) => u.points > 0)
-      .sort((a, b) => b.points - a.points)
-      .slice(0, limit);
   }
 }
