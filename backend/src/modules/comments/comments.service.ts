@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ModerationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toFrontendRole, AuthUserPayload } from '../../common/utils/helpers';
@@ -83,6 +83,24 @@ export class CommentsService {
     }
 
     const text = dto.body.trim();
+
+    // --- SPAM PREVENTION: Cooldown và Duplicate Content ---
+    const lastComment = await this.prisma.comment.findFirst({
+      where: { author_id: user.id },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (lastComment) {
+      const timeDiff = Date.now() - lastComment.created_at.getTime();
+      if (timeDiff < 15000) { // 15 seconds cooldown
+        throw new HttpException('Bạn thao tác quá nhanh. Vui lòng đợi 15 giây trước khi bình luận tiếp.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+      if (lastComment.content === text) {
+        throw new BadRequestException('Nội dung bình luận bị trùng lặp với bình luận trước đó.');
+      }
+    }
+    // ----------------------------------------------------
+
     const scan = await scanContent(this.prisma, text);
 
     const comment = await this.prisma.comment.create({
