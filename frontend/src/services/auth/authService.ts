@@ -15,16 +15,31 @@ interface AuthResponse {
 
 function normalizeUser(raw: any): User {
   const roleMap: Record<string, UserRole> = {
-    admin: "ADMIN",
-    ADMIN: "ADMIN",
-    teacher: "LECTURER",
-    LECTURER: "LECTURER",
-    student: "STUDENT",
-    STUDENT: "STUDENT",
+    admin: "admin",
+    ADMIN: "admin",
+    teacher: "teacher",
+    LECTURER: "teacher",
+    student: "student",
+    STUDENT: "student",
   };
   return {
     ...raw,
-    role: roleMap[String(raw.role)] ?? "STUDENT",
+    id: String(raw.id),
+    role: roleMap[String(raw.role)] ?? "student",
+    // Backend fields
+    full_name: raw.full_name || raw.displayName,
+    is_active: raw.is_active !== undefined ? raw.is_active : !raw.locked,
+    reward_points: raw.reward_points || raw.rewardPoints,
+    created_at: raw.created_at || raw.createdAt,
+    social_links: raw.social_links || raw.socialLinks,
+    avatar_url: raw.avatar_url || raw.avatarUrl,
+    // For backwards compatibility
+    displayName: raw.displayName || raw.full_name,
+    locked: raw.locked !== undefined ? raw.locked : !raw.is_active,
+    rewardPoints: raw.rewardPoints || raw.reward_points,
+    createdAt: raw.createdAt || raw.created_at,
+    socialLinks: raw.socialLinks || raw.social_links,
+    avatarUrl: raw.avatarUrl || raw.avatar_url,
   };
 }
 
@@ -62,12 +77,17 @@ export const authService = {
   },
 
   async updateProfile(input: Partial<User>): Promise<User> {
-    const { displayName, ...rest } = input;
     const data = await apiFetch<User>("/api/auth/me", {
       method: "PATCH",
       body: JSON.stringify({
-        ...rest,
-        fullName: displayName,
+        username: input.username,
+        fullName:
+          input.displayName ?? input.full_name ?? (input as { fullName?: string }).fullName,
+        birthday: input.birthday,
+        bio: input.bio,
+        faculty: input.faculty,
+        socialLinks: input.socialLinks ?? input.social_links,
+        avatarUrl: input.avatarUrl ?? input.avatar_url,
       }),
     });
     const user = normalizeUser(data);

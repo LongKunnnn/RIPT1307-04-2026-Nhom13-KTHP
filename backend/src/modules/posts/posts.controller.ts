@@ -55,6 +55,8 @@ export class PostsController {
   @Post()
   @ApiOperation({ summary: 'Đăng bài viết mới' })
   createPost(@Body() dto: CreatePostDto, @CurrentUser() user: AuthUserPayload) {
+    console.log('📦 Received CreatePostDto:', dto);
+    console.log('👤 Current user:', user);
     return this.postsService.create(dto, user);
   }
 

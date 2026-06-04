@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TargetType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { sumVoteScore } from '../../common/utils/content-moderation';
 import type { AuthUserPayload } from '../../common/utils/helpers';
 import { VoteDto } from './dto/votes.dto';
 
@@ -30,7 +29,7 @@ export class VotesService {
     const targetType = dto.targetType as TargetType;
     let authorId: number;
 
-    // 1. Lấy thông tin tác giả để cộng/trừ điểm thưởng (Bỏ upvote_count và downvote_count đi vì DB không có)
+    // 1. Lấy thông tin tác giả để cộng/trừ điểm thưởng
     if (targetType === 'post') {
       const post = await this.prisma.post.findUnique({
         where: { id: targetId, deleted_at: null },
@@ -57,22 +56,22 @@ export class VotesService {
       },
     });
 
-    // 2. Dùng Transaction để xử lý Vote và Điểm uy tín
-    await this.prisma.$transaction(async (tx) => {
+    // 2. Dùng Transaction để xử lý Vote, Điểm uy tín và Vote Score
+    const finalScore = await this.prisma.$transaction(async (tx) => {
       // TH1: Chưa vote bao giờ
       if (!existingVote) {
         await tx.vote.create({
           data: { user_id: user.id, target_id: targetId, target_type: targetType, vote_value: value },
         });
         await this.updateAuthorPoints(tx, authorId, value === 1 ? POINT_UPVOTE : POINT_DOWNVOTE);
-        return;
+        return this.updateVoteScore(tx, targetType, targetId);
       }
 
       // TH2: Bấm lại nút cũ -> Hủy vote
       if (existingVote.vote_value === value) {
         await tx.vote.delete({ where: { id: existingVote.id } });
         await this.updateAuthorPoints(tx, authorId, value === 1 ? -POINT_UPVOTE : -POINT_DOWNVOTE);
-        return;
+        return this.updateVoteScore(tx, targetType, targetId);
       }
 
       // TH3: Đảo chiều vote
@@ -84,11 +83,10 @@ export class VotesService {
         ? (Math.abs(POINT_DOWNVOTE) + POINT_UPVOTE) 
         : -(POINT_UPVOTE + Math.abs(POINT_DOWNVOTE));
       await this.updateAuthorPoints(tx, authorId, pointDelta);
-    });
+      return this.updateVoteScore(tx, targetType, targetId);
+    }, { timeout: 30000 });
 
-    // 3. Tính điểm thực tế trả về cho FE bằng hàm chuẩn
-    const score = await sumVoteScore(this.prisma, targetId, dto.targetType);
-    return { score };
+    return { score: finalScore };
   }
 
   private async updateAuthorPoints(tx: any, authorId: number, delta: number) {
@@ -97,5 +95,29 @@ export class VotesService {
       where: { id: authorId },
       data: { reward_points: { increment: delta } },
     });
+  }
+
+  private async updateVoteScore(tx: any, targetType: TargetType, targetId: number): Promise<number> {
+    // Tính tổng vote_value cho mục tiêu
+    const agg = await tx.vote.aggregate({
+      where: { target_id: targetId, target_type: targetType },
+      _sum: { vote_value: true },
+    });
+    const newScore = agg._sum.vote_value ?? 0;
+    
+    // Cập nhật vote_score vào bảng Post hoặc Comment
+    if (targetType === TargetType.post) {
+      await tx.post.update({
+        where: { id: targetId },
+        data: { vote_score: newScore },
+      });
+    } else {
+      await tx.comment.update({
+        where: { id: targetId },
+        data: { vote_score: newScore },
+      });
+    }
+    
+    return newScore;
   }
 }

@@ -50,24 +50,28 @@ export class RewardsService {
       );
     }
 
-    const [updated] = await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
-        data: { reward_points: { decrement: item.cost } },
-      }),
-      this.prisma.rewardItem.update({
-        where: { id: item.id },
-        data: { stock: { decrement: 1 } },
-      }),
-      this.prisma.rewardRedemption.create({
-        data: {
-          user_id: user.id,
-          item_id: item.id,
-          cost: item.cost,
-          voucher_code: `VOUCHER-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        },
-      }),
-    ]);
+    const [updated] = await this.prisma.$transaction(
+      async (tx) => {
+        const u = await tx.user.update({
+          where: { id: user.id },
+          data: { reward_points: { decrement: item.cost } },
+        });
+        await tx.rewardItem.update({
+          where: { id: item.id },
+          data: { stock: { decrement: 1 } },
+        });
+        await tx.rewardRedemption.create({
+          data: {
+            user_id: user.id,
+            item_id: item.id,
+            cost: item.cost,
+            voucher_code: `VOUCHER-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+          },
+        });
+        return [u];
+      },
+      { timeout: 30000 },
+    );
 
     return {
       rewardPoints: updated.reward_points,

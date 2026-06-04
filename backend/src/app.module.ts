@@ -14,6 +14,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -42,6 +43,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     FollowsModule,
     LeaderboardModule,
     RewardsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

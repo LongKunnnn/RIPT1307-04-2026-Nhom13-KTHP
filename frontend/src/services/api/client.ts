@@ -56,8 +56,8 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  // Base URL đã có sẵn /api, nên đoạn này chỉ cần gọi /auth/refresh
-  const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+  // Base URL is just http://localhost:3000, so we need to add /api prefix!
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),

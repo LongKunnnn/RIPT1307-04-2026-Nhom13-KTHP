@@ -1,4 +1,4 @@
-export type UserRole = "ADMIN" | "LECTURER" | "STUDENT";
+export type UserRole = "admin" | "teacher" | "student";
 
 export type PostDifficulty = "easy" | "medium" | "hard";
 
@@ -6,14 +6,21 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  displayName: string;
+  full_name: string;
   role: UserRole;
   faculty?: string;
-  locked: boolean;
-  rewardPoints?: number;
-  createdAt: string;
+  is_active: boolean;
+  reward_points?: number;
+  created_at: string;
   birthday?: string;
   bio?: string;
+  social_links?: Record<string, string>;
+  avatar_url?: string;
+  // For backwards compatibility
+  displayName?: string;
+  locked?: boolean;
+  rewardPoints?: number;
+  createdAt?: string;
   socialLinks?: Record<string, string>;
   avatarUrl?: string;
 }
@@ -179,4 +186,31 @@ export interface RewardItem {
   description?: string;
   cost: number;
   stock: number;
+}
+
+// Chat Types
+export interface ChatUser {
+  id: string;
+  username: string;
+  fullName: string;
+  avatarUrl?: string;
+  role: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender: ChatUser;
+}
+
+export interface ChatConversation {
+  id: string;
+  otherUser: ChatUser;
+  lastMessage?: ChatMessage;
+  unreadCount: number;
+  updatedAt: string;
 }

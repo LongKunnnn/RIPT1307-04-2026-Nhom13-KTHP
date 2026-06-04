@@ -73,7 +73,7 @@ model User {
   username               String    @unique @db.VarChar(100)
   password_hash          String    @db.VarChar(255)
   full_name              String    @db.VarChar(150)
-  avatar_url             String?   @db.VarChar(500)
+  avatar_url             String?   @db.Text
   birthday               DateTime?
   bio                    String?   @db.Text
   social_links           Json?
@@ -104,6 +104,14 @@ model User {
   followings UserFollow[] @relation("Followers")
   followers  UserFollow[] @relation("Followings")
 
+  // Chat relations
+  conversations1 Conversation[] @relation("ConversationUser1")
+  conversations2 Conversation[] @relation("ConversationUser2")
+  sent_messages  Message[]
+
+  // Password history
+  password_histories PasswordHistory[]
+
   @@index([role])
   @@index([is_active])
   @@index([faculty])
@@ -125,6 +133,19 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model PasswordHistory {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  password_hash String   @db.VarChar(255)
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("password_histories")
+}
+
 model Post {
   id                  Int              @id @default(autoincrement())
   author_id           Int
@@ -142,6 +163,7 @@ model Post {
   avg_rating          Float            @default(0)
   rating_count        Int              @default(0)
   accepted_comment_id Int?             @unique
+  vote_score          Int              @default(0)
   created_at          DateTime         @default(now())
   updated_at          DateTime         @updatedAt
   deleted_at          DateTime?
@@ -219,6 +241,7 @@ model Comment {
   moderation_status ModerationStatus @default(published)
   moderation_note   String?          @db.Text
   matched_words     Json?
+  vote_score        Int              @default(0)
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
   deleted_at        DateTime?
@@ -396,4 +419,37 @@ model UserFollow {
   @@index([following_id, created_at(sort: Desc)])
   @@index([follower_id, created_at(sort: Desc)])
   @@map("user_follows")
+}
+
+model Conversation {
+  id         Int      @id @default(autoincrement())
+  user1_id   Int
+  user2_id   Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user1    User      @relation("ConversationUser1", fields: [user1_id], references: [id], onDelete: Cascade)
+  user2    User      @relation("ConversationUser2", fields: [user2_id], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([user1_id])
+  @@index([user2_id])
+  @@index([user1_id, user2_id])
+  @@map("conversations")
+}
+
+model Message {
+  id              Int      @id @default(autoincrement())
+  conversation_id Int
+  sender_id       Int
+  content         String   @db.Text
+  is_read         Boolean  @default(false)
+  created_at      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id])
+  @@index([sender_id])
+  @@map("messages")
 }

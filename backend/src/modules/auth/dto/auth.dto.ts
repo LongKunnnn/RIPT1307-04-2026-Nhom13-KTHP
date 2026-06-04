@@ -22,7 +22,16 @@ const UpdateProfileSchema = z.object({
   bio: z.string().max(1000).optional(),
   socialLinks: z.record(z.string(), z.string()).optional(),
   faculty: z.string().max(150).optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z
+    .string()
+    .max(300000, 'Ảnh đại diện quá lớn')
+    .refine(
+      (v) =>
+        v.startsWith('data:image/') ||
+        /^https?:\/\/.+/i.test(v),
+      'Ảnh đại diện phải là URL hoặc ảnh tải lên hợp lệ',
+    )
+    .optional(),
 });
 
 const LoginSchema = z.object({

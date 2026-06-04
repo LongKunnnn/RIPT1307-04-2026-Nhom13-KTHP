@@ -846,7 +846,7 @@ export default function HomePage() {
                     />
                     Điểm thưởng:{" "}
                     <strong>
-                      {(user.rewardPoints ?? 0).toLocaleString("vi-VN")}
+                      {(user.reward_points ?? user.rewardPoints ?? 0).toLocaleString("vi-VN")}
                     </strong>
                   </Text>
                   <Button
@@ -860,34 +860,7 @@ export default function HomePage() {
               </Card>
             )}
 
-            {activeTab === "mine" && isAuthenticated && user && (
-              <Card
-                className={styles.railCard}
-                bordered={false}
-                title="Tóm tắt"
-              >
-                <div className={styles.mineSummary}>
-                  <button
-                    type="button"
-                    className={styles.mineSummaryRow}
-                    onClick={() => goMine("authored")}
-                  >
-                    <QuestionCircleOutlined />
-                    <span>Câu hỏi đã đăng</span>
-                    <strong>{authoredTotal}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.mineSummaryRow}
-                    onClick={() => goMine("followed")}
-                  >
-                    <BellOutlined />
-                    <span>Đang theo dõi</span>
-                    <strong>{followedCount}</strong>
-                  </button>
-                </div>
-              </Card>
-            )}
+
 
             <Card
               className={styles.railCard}

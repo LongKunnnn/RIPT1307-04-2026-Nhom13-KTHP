@@ -49,17 +49,30 @@ export class AuthService {
       ? (toBackendRole(dto.role) as UserRole)
       : UserRole.student;
 
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        username,
-        password_hash: hashedPassword,
-        full_name: dto.fullName || 'Thành viên mới',
-        birthday: dto.birthday ? new Date(dto.birthday) : null,
-        role,
-        faculty: dto.faculty,
+    const newUser = await this.prisma.$transaction(
+      async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email: dto.email,
+            username,
+            password_hash: hashedPassword,
+            full_name: dto.fullName || 'Thành viên mới',
+            birthday: dto.birthday ? new Date(dto.birthday) : null,
+            role,
+            faculty: dto.faculty,
+          },
+        });
+        // Save initial password to history
+        await tx.passwordHistory.create({
+          data: {
+            user_id: u.id,
+            password_hash: hashedPassword,
+          },
+        });
+        return u;
       },
-    });
+      { timeout: 30000 },
+    );
 
     const tokens = await this.generateTokens(
       newUser.id,
@@ -269,7 +282,7 @@ export class AuthService {
       throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn.');
     }
 
-    // KIỂM TRA MẬT KHẨU MỚI KHÔNG TRÙNG MẬT KHẨU CŨ
+    // KIỂM TRA MẬT KHẨU MỚI KHÔNG TRÙNG VỚI MẬT KHẨU CŨ GẦN NHẤT
     const isSamePassword = await bcrypt.compare(
       dto.password,
       user.password_hash,
@@ -282,14 +295,27 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password_hash: hashedPassword,
-        reset_password_token: null,
-        reset_password_expires: null,
+    await this.prisma.$transaction(
+      async (tx) => {
+        // Save old password to history
+        await tx.passwordHistory.create({
+          data: {
+            user_id: user.id,
+            password_hash: user.password_hash,
+          },
+        });
+        // Update user's password
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            password_hash: hashedPassword,
+            reset_password_token: null,
+            reset_password_expires: null,
+          },
+        });
       },
-    });
+      { timeout: 30000 },
+    );
 
     return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' };
   }
