@@ -65,6 +65,11 @@ enum PostDifficulty {
   hard
 }
 
+enum ConversationStatus {
+  pending
+  active
+}
+
 // ================= MODELS =================
 
 model User {
@@ -105,9 +110,10 @@ model User {
   followers  UserFollow[] @relation("Followings")
 
   // Chat relations
-  conversations1 Conversation[] @relation("ConversationUser1")
-  conversations2 Conversation[] @relation("ConversationUser2")
-  sent_messages  Message[]
+  conversations1  Conversation[] @relation("ConversationUser1")
+  conversations2  Conversation[] @relation("ConversationUser2")
+  initiated_chats Conversation[] @relation("ConversationInitiator")
+  sent_messages   Message[]
 
   // Password history
   password_histories PasswordHistory[]
@@ -422,19 +428,23 @@ model UserFollow {
 }
 
 model Conversation {
-  id         Int      @id @default(autoincrement())
-  user1_id   Int
-  user2_id   Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id              Int                @id @default(autoincrement())
+  user1_id        Int
+  user2_id        Int
+  initiated_by_id Int?
+  status          ConversationStatus @default(active)
+  accepted_at     DateTime?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
 
-  user1    User      @relation("ConversationUser1", fields: [user1_id], references: [id], onDelete: Cascade)
-  user2    User      @relation("ConversationUser2", fields: [user2_id], references: [id], onDelete: Cascade)
-  messages Message[]
+  user1        User      @relation("ConversationUser1", fields: [user1_id], references: [id], onDelete: Cascade)
+  user2        User      @relation("ConversationUser2", fields: [user2_id], references: [id], onDelete: Cascade)
+  initiated_by User?     @relation("ConversationInitiator", fields: [initiated_by_id], references: [id], onDelete: SetNull)
+  messages     Message[]
 
+  @@unique([user1_id, user2_id])
   @@index([user1_id])
   @@index([user2_id])
-  @@index([user1_id, user2_id])
   @@map("conversations")
 }
 

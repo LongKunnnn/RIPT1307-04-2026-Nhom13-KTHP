@@ -13,12 +13,12 @@ export class ChatController {
   constructor(private chatService: ChatService) {}
 
   @Get('search-users')
-  @ApiOperation({ summary: 'Tìm kiếm người dùng theo username' })
-  searchUsers(
+  @ApiOperation({ summary: 'Tìm trong danh sách đã từng nhắn tin (hộp thư chính)' })
+  searchInboxPartners(
     @Query('q') query: string,
     @CurrentUser() user: AuthUserPayload,
   ) {
-    return this.chatService.searchUsers(query, user.id);
+    return this.chatService.searchInboxPartners(query, user.id);
   }
 
   @Post('conversations')

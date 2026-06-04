@@ -27,14 +27,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       ? exception.getResponse()
       : 'Lỗi hệ thống nội bộ, vui lòng thử lại sau.';
 
-    // Ghi log chi tiết xuống terminal
-    console.log('========================================');
-    console.log('🔴 Error at:', request.method, request.url);
-    console.log('📥 Request Body:', request.body);
-    console.log('📥 Request Headers:', request.headers);
-    console.log('❌ Exception:', exception);
-    if (exception instanceof Error) console.log('❌ Stack:', exception.stack);
-    console.log('========================================');
+    const isExpectedLoginFailure =
+      request.url.includes('/auth/login') &&
+      status === HttpStatus.UNAUTHORIZED;
+
+    if (isExpectedLoginFailure) {
+      this.logger.debug(
+        `Login failed for ${(request.body as { email?: string })?.email ?? 'unknown'}`,
+      );
+    } else {
+      this.logger.warn(
+        `${request.method} ${request.url} → ${status}`,
+      );
+      if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        this.logger.error(exception);
+        if (exception instanceof Error) this.logger.error(exception.stack);
+      }
+    }
 
     // Format dữ liệu trả về cho Frontend
     response.status(status).json({

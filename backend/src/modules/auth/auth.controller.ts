@@ -5,11 +5,13 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   BadRequestException,
   UseGuards,
 } from '@nestjs/common';
+import { toFrontendRole } from '../../common/utils/helpers';
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
@@ -75,6 +77,39 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.authService.updateProfile(user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users/search')
+  searchUsers(
+    @Query('q') q: string,
+    @CurrentUser() user: AuthUserPayload,
+  ) {
+    return this.authService.searchUsersGlobal(q, user.id).then((rows) =>
+      rows.map((u) => ({
+        id: String(u.id),
+        username: u.username,
+        fullName: u.full_name,
+        avatarUrl: u.avatar_url ?? undefined,
+        role: toFrontendRole(u.role),
+        faculty: u.faculty ?? undefined,
+        bio: u.bio ?? undefined,
+      })),
+    );
+  }
+
+  @Public()
+  @Get('users/:username/posts')
+  getUserPosts(
+    @Param('username') username: string,
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '10',
+  ) {
+    return this.authService.getPublicPostsByUsername(
+      username,
+      parseInt(page, 10) || 1,
+      parseInt(pageSize, 10) || 10,
+    );
   }
 
   @Public()
