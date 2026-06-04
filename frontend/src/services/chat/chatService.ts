@@ -1,9 +1,9 @@
-import type { ChatConversation, ChatMessage, ChatUser } from '@/types';
+import type { ChatConversation, ChatInbox, ChatMessage, ChatUser } from '@/types';
 import { apiFetch, buildQuery } from '@/services/api/client';
-import { mapChatConversation, mapChatMessage, mapChatUser } from '@/utils/chat';
+import { mapChatConversation, mapChatInbox, mapChatMessage, mapChatUser } from '@/utils/chat';
 
 export const chatService = {
-  async searchUsers(query: string): Promise<ChatUser[]> {
+  async searchInboxPartners(query: string): Promise<ChatUser[]> {
     const rows = await apiFetch<Record<string, unknown>[]>(
       `/api/chat/search-users${buildQuery({ q: query })}`,
     );
@@ -18,9 +18,9 @@ export const chatService = {
     return mapChatConversation(conv);
   },
 
-  async getMyConversations(): Promise<ChatConversation[]> {
-    const rows = await apiFetch<Record<string, unknown>[]>('/api/chat/conversations');
-    return rows.map((r) => mapChatConversation(r));
+  async getMyConversations(): Promise<ChatInbox> {
+    const raw = await apiFetch<Record<string, unknown>>('/api/chat/conversations');
+    return mapChatInbox(raw);
   },
 
   async getMessages(

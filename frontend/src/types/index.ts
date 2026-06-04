@@ -213,4 +213,31 @@ export interface ChatConversation {
   lastMessage?: ChatMessage;
   unreadCount: number;
   updatedAt: string;
+  pendingForMe?: boolean;
+}
+
+export interface ChatInbox {
+  active: ChatConversation[];
+  pending: ChatConversation[];
+}
+
+export interface PublicUserSearchHit {
+  id: string;
+  username: string;
+  fullName: string;
+  avatarUrl?: string;
+  role: string;
+  faculty?: string;
+  bio?: string;
+}
+
+export interface ProfilePostSummary {
+  id: string;
+  title: string;
+  excerpt: string;
+  tags: string[];
+  answerCount: number;
+  viewCount: number;
+  voteScore: number;
+  createdAt: string;
 }

@@ -1,6 +1,14 @@
-import type { RegisterInput, User, UserRole } from "@/types";
+import type {
+  PaginatedResult,
+  ProfilePostSummary,
+  PublicUserSearchHit,
+  RegisterInput,
+  User,
+  UserRole,
+} from "@/types";
 import {
   apiFetch,
+  buildQuery,
   clearTokens,
   getStoredUser,
   setStoredUser,
@@ -100,6 +108,25 @@ export const authService = {
       `/api/auth/users/${encodeURIComponent(username)}`,
     );
     return normalizeUser(data);
+  },
+
+  async searchUsersGlobal(query: string): Promise<PublicUserSearchHit[]> {
+    return apiFetch<PublicUserSearchHit[]>(
+      `/api/auth/users/search${buildQuery({ q: query })}`,
+    );
+  },
+
+  async getUserPosts(
+    username: string,
+    page = 1,
+    pageSize = 10,
+  ): Promise<PaginatedResult<ProfilePostSummary>> {
+    return apiFetch<PaginatedResult<ProfilePostSummary>>(
+      `/api/auth/users/${encodeURIComponent(username)}/posts${buildQuery({
+        page,
+        pageSize,
+      })}`,
+    );
   },
 
   async refreshProfile(): Promise<User | null> {

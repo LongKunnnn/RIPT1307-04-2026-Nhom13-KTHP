@@ -4,6 +4,7 @@ import {
   Button,
   Empty,
   Input,
+  Space,
   Spin,
   Typography,
   message as antMessage,
@@ -28,6 +29,7 @@ export function ProfileChatPanel({ targetUser }: ProfileChatPanelProps) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,15 +59,20 @@ export function ProfileChatPanel({ targetUser }: ProfileChatPanelProps) {
   }, [loadChat]);
 
   const handleSend = async () => {
-    if (!messageInput.trim() || !conversationId || !user) return;
+    const content = messageInput.trim();
+    if (!content || !conversationId || !user || sendingRef.current) return;
+
+    sendingRef.current = true;
     setSending(true);
+    setMessageInput("");
     try {
-      const sent = await chatService.sendMessage(conversationId, messageInput);
+      const sent = await chatService.sendMessage(conversationId, content);
       setMessages((prev) => [...prev, sent]);
-      setMessageInput("");
     } catch {
+      setMessageInput(content);
       antMessage.error("Không thể gửi tin nhắn.");
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -170,22 +177,29 @@ export function ProfileChatPanel({ targetUser }: ProfileChatPanelProps) {
         )}
       </div>
 
-      <Input.Search
-        placeholder="Nhập tin nhắn..."
-        allowClear
-        enterButton={
-          <Button icon={<SendOutlined />} loading={sending}>
-            Gửi
-          </Button>
-        }
-        value={messageInput}
-        onChange={(e) => setMessageInput(e.target.value)}
-        onSearch={handleSend}
-        onPressEnter={handleSend}
-      />
+      <Space.Compact style={{ width: "100%" }}>
+        <Input
+          placeholder="Nhập tin nhắn..."
+          allowClear
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+          onPressEnter={(e) => {
+            e.preventDefault();
+            void handleSend();
+          }}
+        />
+        <Button
+          type="primary"
+          icon={<SendOutlined />}
+          loading={sending}
+          onClick={() => void handleSend()}
+        >
+          Gửi
+        </Button>
+      </Space.Compact>
       <Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
-        Lịch sử tin nhắn được lưu tự động. Bạn cũng có thể mở mục Tin nhắn trên thanh
-        menu để xem tất cả cuộc trò chuyện.
+        Nếu người nhận chưa từng trả lời bạn, tin sẽ nằm ở mục Đang chờ trên cửa sổ Tin nhắn
+        cho đến khi họ phản hồi.
       </Text>
     </div>
   );

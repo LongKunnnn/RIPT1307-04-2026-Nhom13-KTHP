@@ -9,12 +9,17 @@ import {
   message,
   Spin,
   Empty,
+  Space,
+  Tabs,
+  Alert,
+  Badge,
 } from "antd";
 import {
   SearchOutlined,
   SendOutlined,
   MessageOutlined,
   UserOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 import type { ChatConversation, ChatMessage, ChatUser } from "@/types";
 import { chatService } from "@/services/chat/chatService";
@@ -45,16 +50,18 @@ function ChatAvatar({
 
 export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
   const { user, isAuthenticated } = useAuth();
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [inboxTab, setInboxTab] = useState<"active" | "pending">("active");
+  const [activeConversations, setActiveConversations] = useState<ChatConversation[]>([]);
+  const [pendingConversations, setPendingConversations] = useState<ChatConversation[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const sendingRef = useRef(false);
+  const startingRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,8 +74,9 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
   const loadConversations = async () => {
     setLoading(true);
     try {
-      const convs = await chatService.getMyConversations();
-      setConversations(convs);
+      const inbox = await chatService.getMyConversations();
+      setActiveConversations(inbox.active);
+      setPendingConversations(inbox.pending);
     } catch (err) {
       console.error("Failed to load conversations:", err);
     } finally {
@@ -82,7 +90,22 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
     }
   }, [open, isAuthenticated]);
 
+  const currentList =
+    inboxTab === "pending" ? pendingConversations : activeConversations;
+
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter(
+      (c) =>
+        c.otherUser.username.toLowerCase().includes(q) ||
+        c.otherUser.fullName.toLowerCase().includes(q),
+    );
+  }, [currentList, searchQuery]);
+
   const startConversation = async (chatUser: ChatUser) => {
+    if (startingRef.current === chatUser.id) return;
+    startingRef.current = chatUser.id;
     setLoading(true);
     try {
       const conv = await chatService.getOrCreateConversation(chatUser.id);
@@ -90,12 +113,14 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
       const msgs = await chatService.getMessages(conv.id);
       setMessages(msgs);
       setSearchQuery("");
-      setSearchResults([]);
       await loadConversations();
+      if (conv.pendingForMe) setInboxTab("pending");
+      else setInboxTab("active");
     } catch {
       message.error("Không thể bắt đầu cuộc trò chuyện!");
     } finally {
       setLoading(false);
+      startingRef.current = null;
     }
   };
 
@@ -103,35 +128,12 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
     if (open && targetUser && isAuthenticated) {
       void startConversation(targetUser);
     }
+    if (!open) {
+      startingRef.current = null;
+      sendingRef.current = false;
+      setInboxTab("active");
+    }
   }, [open, targetUser?.id, isAuthenticated]);
-
-  const filteredConversations = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter(
-      (c) =>
-        c.otherUser.username.toLowerCase().includes(q) ||
-        c.otherUser.fullName.toLowerCase().includes(q),
-    );
-  }, [conversations, searchQuery]);
-
-  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const users = await chatService.searchUsers(query);
-      setSearchResults(users);
-    } catch (err) {
-      console.error("Failed to search users:", err);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
 
   const selectConversation = async (conv: ChatConversation) => {
     setSelectedConversation(conv);
@@ -144,34 +146,118 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversation || !user) return;
+    const content = messageInput.trim();
+    if (!content || !selectedConversation || !user || sendingRef.current) return;
+
+    const wasPending = selectedConversation.pendingForMe;
+    sendingRef.current = true;
+    setMessageInput("");
     try {
       const sentMsg = await chatService.sendMessage(
         selectedConversation.id,
-        messageInput,
+        content,
       );
       setMessages((prev) => [...prev, sentMsg]);
-      setMessageInput("");
-      setSelectedConversation({
+      const updated = {
         ...selectedConversation,
         lastMessage: sentMsg,
-      });
+        pendingForMe: false,
+      };
+      setSelectedConversation(updated);
       await loadConversations();
+      if (wasPending) {
+        setInboxTab("active");
+        message.success("Đã chấp nhận tin nhắn — cuộc trò chuyện chuyển sang hộp thư chính");
+      }
     } catch {
+      setMessageInput(content);
       message.error("Không thể gửi tin nhắn!");
+    } finally {
+      sendingRef.current = false;
     }
   };
 
   const handleClose = () => {
     setSelectedConversation(null);
     setSearchQuery("");
-    setSearchResults([]);
     setMessages([]);
     onClose();
   };
 
-  const showGlobalSearch =
-    searchQuery.trim().length > 0 && searchResults.length > 0;
+  const renderConversationList = () => (
+    <>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0" }}>
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder={
+            inboxTab === "pending"
+              ? "Lọc tin nhắn đang chờ..."
+              : "Lọc người đã từng nhắn tin..."
+          }
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          allowClear
+        />
+        <Text type="secondary" style={{ fontSize: 11, marginTop: 6, display: "block" }}>
+          {inboxTab === "pending"
+            ? "Tin từ người lạ — trả lời để chuyển vào hộp thư chính"
+            : "Chỉ tìm trong danh sách đã nhắn tin. Tìm thành viên mới ở tab Thành viên trên diễn đàn."}
+        </Text>
+      </div>
+
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 20 }}>
+            <Spin />
+          </div>
+        ) : filteredConversations.length > 0 ? (
+          <List
+            dataSource={filteredConversations}
+            renderItem={(conv) => (
+              <List.Item
+                style={{
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedConversation?.id === conv.id
+                      ? "#e6f7ff"
+                      : "transparent",
+                }}
+                onClick={() => selectConversation(conv)}
+              >
+                <List.Item.Meta
+                  avatar={<ChatAvatar user={conv.otherUser} />}
+                  title={conv.otherUser.fullName}
+                  description={
+                    <div>
+                      <Text ellipsis style={{ maxWidth: 180, display: "block" }}>
+                        {conv.lastMessage?.content || "Chưa có tin nhắn"}
+                      </Text>
+                      {conv.lastMessage && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {formatViDate(conv.lastMessage.createdAt)}
+                        </Text>
+                      )}
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Empty
+            description={
+              searchQuery
+                ? "Không có cuộc trò chuyện phù hợp"
+                : inboxTab === "pending"
+                  ? "Không có tin nhắn đang chờ"
+                  : "Chưa có cuộc trò chuyện — tìm thành viên trên diễn đàn để bắt đầu"
+            }
+            style={{ padding: 40 }}
+          />
+        )}
+      </div>
+    </>
+  );
 
   return (
     <Modal
@@ -197,125 +283,33 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
             flexDirection: "column",
           }}
         >
-          <div style={{ padding: "16px", borderBottom: "1px solid #f0f0f0" }}>
-            <Input
-              prefix={<SearchOutlined />}
-              placeholder="Tìm theo tên hoặc @username..."
-              value={searchQuery}
-              onChange={handleSearch}
-              allowClear
-            />
-            <Text type="secondary" style={{ fontSize: 11, marginTop: 6, display: "block" }}>
-              Gõ để lọc cuộc trò chuyện hoặc tìm thành viên mới
-            </Text>
-          </div>
-
-          <div style={{ flex: 1, overflow: "auto" }}>
-            {searchLoading ? (
-              <div style={{ textAlign: "center", padding: 20 }}>
-                <Spin />
-              </div>
-            ) : (
-              <>
-                {filteredConversations.length > 0 && (
-                  <>
-                    <Text
-                      type="secondary"
-                      style={{ padding: "8px 16px", display: "block", fontSize: 12 }}
-                    >
-                      Cuộc trò chuyện
-                    </Text>
-                    <List
-                      dataSource={filteredConversations}
-                      renderItem={(conv) => (
-                        <List.Item
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor:
-                              selectedConversation?.id === conv.id
-                                ? "#e6f7ff"
-                                : "transparent",
-                          }}
-                          onClick={() => selectConversation(conv)}
-                        >
-                          <List.Item.Meta
-                            avatar={<ChatAvatar user={conv.otherUser} />}
-                            title={conv.otherUser.fullName}
-                            description={
-                              <div>
-                                <Text ellipsis style={{ maxWidth: 180, display: "block" }}>
-                                  {conv.lastMessage?.content || "Chưa có tin nhắn"}
-                                </Text>
-                                {conv.lastMessage && (
-                                  <Text type="secondary" style={{ fontSize: 12 }}>
-                                    {formatViDate(conv.lastMessage.createdAt)}
-                                  </Text>
-                                )}
-                              </div>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  </>
-                )}
-
-                {showGlobalSearch && (
-                  <>
-                    <Text
-                      type="secondary"
-                      style={{ padding: "8px 16px", display: "block", fontSize: 12 }}
-                    >
-                      Tìm thêm thành viên
-                    </Text>
-                    <List
-                      dataSource={searchResults.filter(
-                        (u) =>
-                          !filteredConversations.some(
-                            (c) => c.otherUser.id === u.id,
-                          ),
-                      )}
-                      renderItem={(userItem) => (
-                        <List.Item
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startConversation(userItem)}
-                        >
-                          <List.Item.Meta
-                            avatar={<ChatAvatar user={userItem} />}
-                            title={userItem.fullName}
-                            description={`@${userItem.username}`}
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  </>
-                )}
-
-                {!searchLoading &&
-                  filteredConversations.length === 0 &&
-                  !showGlobalSearch && (
-                    <Empty
-                      description={
-                        searchQuery
-                          ? "Không có cuộc trò chuyện phù hợp"
-                          : "Chưa có cuộc trò chuyện — tìm tên để bắt đầu"
-                      }
-                      style={{ padding: 40 }}
-                    />
-                  )}
-
-                {searchQuery &&
-                  !searchLoading &&
-                  filteredConversations.length === 0 &&
-                  searchResults.length === 0 && (
-                    <Empty
-                      description="Không tìm thấy người dùng"
-                      style={{ padding: 40 }}
-                    />
-                  )}
-              </>
-            )}
-          </div>
+          <Tabs
+            activeKey={inboxTab}
+            onChange={(k) => {
+              setInboxTab(k as "active" | "pending");
+              setSearchQuery("");
+              setSelectedConversation(null);
+              setMessages([]);
+            }}
+            items={[
+              {
+                key: "active",
+                label: "Tin nhắn",
+              },
+              {
+                key: "pending",
+                label: (
+                  <Badge count={pendingConversations.length} size="small" offset={[6, 0]}>
+                    <span>
+                      <InboxOutlined /> Đang chờ
+                    </span>
+                  </Badge>
+                ),
+              },
+            ]}
+            style={{ padding: "0 8px" }}
+          />
+          {renderConversationList()}
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -325,20 +319,28 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
                 style={{
                   padding: "16px",
                   borderBottom: "1px solid #f0f0f0",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
                 }}
               >
-                <ChatAvatar user={selectedConversation.otherUser} size={48} />
-                <div>
-                  <Title level={5} style={{ margin: 0 }}>
-                    {selectedConversation.otherUser.fullName}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    @{selectedConversation.otherUser.username}
-                  </Text>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <ChatAvatar user={selectedConversation.otherUser} size={48} />
+                  <div>
+                    <Title level={5} style={{ margin: 0 }}>
+                      {selectedConversation.otherUser.fullName}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      @{selectedConversation.otherUser.username}
+                    </Text>
+                  </div>
                 </div>
+                {selectedConversation.pendingForMe && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginTop: 12 }}
+                    message="Tin nhắn đang chờ"
+                    description="Người này chưa từng nhắn tin với bạn trước đây. Trả lời để chấp nhận và hiển thị trong hộp thư chính."
+                  />
+                )}
               </div>
 
               <div
@@ -404,15 +406,29 @@ export function ChatModal({ open, onClose, targetUser }: ChatModalProps) {
               </div>
 
               <div style={{ padding: "16px", borderTop: "1px solid #f0f0f0" }}>
-                <Input.Search
-                  placeholder="Nhập tin nhắn..."
-                  allowClear
-                  enterButton={<Button icon={<SendOutlined />}>Gửi</Button>}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onSearch={handleSendMessage}
-                  onPressEnter={handleSendMessage}
-                />
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input
+                    placeholder={
+                      selectedConversation.pendingForMe
+                        ? "Trả lời để chấp nhận tin nhắn..."
+                        : "Nhập tin nhắn..."
+                    }
+                    allowClear
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onPressEnter={(e) => {
+                      e.preventDefault();
+                      void handleSendMessage();
+                    }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<SendOutlined />}
+                    onClick={() => void handleSendMessage()}
+                  >
+                    Gửi
+                  </Button>
+                </Space.Compact>
               </div>
             </>
           ) : (

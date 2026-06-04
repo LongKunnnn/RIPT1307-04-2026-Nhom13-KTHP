@@ -32,6 +32,19 @@ export function mapChatConversation(raw: Record<string, unknown>): ChatConversat
     lastMessage: lastMessage ? mapChatMessage(lastMessage) : undefined,
     unreadCount: Number(raw.unreadCount ?? 0),
     updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ""),
+    pendingForMe: Boolean(raw.pendingForMe ?? raw.pending_for_me),
+  };
+}
+
+export function mapChatInbox(raw: Record<string, unknown>): {
+  active: ChatConversation[];
+  pending: ChatConversation[];
+} {
+  const active = (raw.active as Record<string, unknown>[]) ?? [];
+  const pending = (raw.pending as Record<string, unknown>[]) ?? [];
+  return {
+    active: active.map((r) => mapChatConversation(r)),
+    pending: pending.map((r) => mapChatConversation(r)),
   };
 }
 

@@ -20,12 +20,14 @@ import {
   BankOutlined,
   ArrowLeftOutlined,
   MessageOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { authService } from "@/services/auth/authService";
+import { ProfilePostsPanel } from "@/components/forum/ProfilePostsPanel";
 import { formatViDate } from "@/utils/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChat } from "@/contexts/ChatContext";
-import { ProfileChatPanel } from "@/components/forum/ProfileChatPanel";
+
 import { chatUserFromProfile } from "@/utils/chat";
 import type { User } from "@/types";
 import styles from "./profile.less";
@@ -40,9 +42,9 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const activeTab = searchParams.get("tab") === "messages" ? "messages" : "profile";
-  const isOwnProfile =
-    isAuthenticated && currentUser?.username === username;
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "posts" ? tabParam : "profile";
+  const isOwnProfile = isAuthenticated && currentUser?.username === username;
 
   useEffect(() => {
     if (username) {
@@ -156,19 +158,15 @@ export default function PublicProfilePage() {
       ),
       children: profileInfo,
     },
-    ...(canMessage
-      ? [
-          {
-            key: "messages",
-            label: (
-              <span>
-                <MessageOutlined /> Nhắn tin
-              </span>
-            ),
-            children: <ProfileChatPanel targetUser={chatTarget} />,
-          },
-        ]
-      : []),
+    {
+      key: "posts",
+      label: (
+        <span>
+          <FileTextOutlined /> Bài đăng
+        </span>
+      ),
+      children: <ProfilePostsPanel username={user.username} />,
+    },
   ];
 
   return (
@@ -215,16 +213,11 @@ export default function PublicProfilePage() {
               <Button
                 type="primary"
                 icon={<MessageOutlined />}
-                onClick={() => setSearchParams({ tab: "messages" })}
-              >
-                Nhắn tin
-              </Button>
-              <Button
                 onClick={() => {
                   openChat(chatTarget);
                 }}
               >
-                Mở cửa sổ chat
+                Nhắn tin
               </Button>
             </Space>
           )}
