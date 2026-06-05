@@ -56,8 +56,8 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  // Base URL đã có sẵn /api, nên đoạn này chỉ cần gọi /auth/refresh
-  const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+  // Base URL is just http://localhost:3000, so we need to add /api prefix!
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -79,6 +79,20 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/** Các route auth công khai: 401 = sai mật khẩu, không phải hết phiên. */
+const PUBLIC_AUTH_PATHS =
+  /^\/api\/auth\/(login|register|refresh|forgot-password|reset-password)(\/|$)/;
+
+function isPublicAuthPath(path: string): boolean {
+  return PUBLIC_AUTH_PATHS.test(path);
+}
+
+export function getApiErrorMessage(error: unknown, fallback = 'Đã xảy ra lỗi'): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
 function messageFromErrorBody(body: unknown): string | undefined {
@@ -122,7 +136,19 @@ export async function apiFetch<T>(
 
   const res = await fetch(`${getApiBaseUrl()}${path}`, { ...options, headers });
 
-  // XỬ LÝ 401 CHỐNG VĂNG MÀN HÌNH ĐỎ
+  // 401 trên login/register = báo lỗi cho form, không refresh token / không redirect
+  if (res.status === 401 && isPublicAuthPath(path)) {
+    let message = 'Thông tin đăng nhập không chính xác.';
+    try {
+      const body = await res.json();
+      message = messageFromErrorBody(body) ?? message;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(message, 401);
+  }
+
+  // 401 trên API có token: thử refresh, hết hạn thì về trang đăng nhập
   if (res.status === 401) {
     if (retry) {
       const newToken = await refreshAccessToken();
@@ -130,11 +156,12 @@ export async function apiFetch<T>(
         return apiFetch<T>(path, options, false);
       }
     }
-    // Hết cứu vãn -> Xóa token cũ, đá về Login êm ái
     clearTokens();
-    window.location.href = '/login'; 
-    // Trả về một Promise treo vĩnh viễn để chặn cái "throw ApiError" ở dưới nổ tung
-    return new Promise(() => {}) as Promise<T>;
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+      return new Promise(() => {}) as Promise<T>;
+    }
+    throw new ApiError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401);
   }
 
   if (!res.ok) {

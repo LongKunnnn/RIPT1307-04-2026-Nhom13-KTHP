@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { Link, history } from 'umi';
-import { Button, Card, Form, Input, Typography, Alert } from 'antd';
+import { Button, Card, Form, Input, Typography, Alert, message } from 'antd';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROUTES } from '@/constants/routes';
+import { ApiError, getApiErrorMessage } from '@/services/api/client';
 import { DEMO_PASSWORD } from '@/services/mock/seed';
 import styles from './auth.less';
 
+const LOGIN_FAIL_MSG =
+  'Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại và thử lần nữa.';
+
 export default function LoginPage() {
   const { login } = useAuth();
+  const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,12 +20,13 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      const u = await login(v.email, v.password);
+      const u = await login(v.email.trim(), v.password);
+      message.success('Đăng nhập thành công');
       const state = history.location.state as { from?: string } | undefined;
       const from = state?.from;
-      if (from && from.startsWith('/admin') && u.role === 'ADMIN') {
+      if (from && from.startsWith('/admin') && u.role === 'admin') {
         history.push(from);
-      } else if (u.role === 'ADMIN') {
+      } else if (u.role === 'admin') {
         history.push(ROUTES.admin.root);
       } else if (from) {
         history.push(from);
@@ -28,7 +34,14 @@ export default function LoginPage() {
         history.push(ROUTES.home);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Đăng nhập thất bại');
+      const msg =
+        e instanceof ApiError && e.status === 401
+          ? LOGIN_FAIL_MSG
+          : getApiErrorMessage(e, LOGIN_FAIL_MSG);
+      setError(msg);
+      message.warning(msg);
+      form.setFieldsValue({ password: '' });
+      form.focusField('password');
     } finally {
       setLoading(false);
     }
@@ -37,8 +50,18 @@ export default function LoginPage() {
   return (
     <div className={styles.wrap}>
       <Card title="Đăng nhập" className={styles.card}>
-        {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
-        <Form layout="vertical" onFinish={onFinish}>
+        {error && (
+          <Alert
+            type="warning"
+            message="Đăng nhập không thành công"
+            description={error}
+            showIcon
+            closable
+            onClose={() => setError('')}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <Form form={form} layout="vertical" onFinish={onFinish}>
           <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
             <Input placeholder="admin@svforum.vn" />
           </Form.Item>

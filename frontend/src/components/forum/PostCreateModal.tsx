@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotify } from '@/contexts/NotificationContext';
 import { TagSelectField } from './TagSelectField';
 import { moderationUserMessage } from '@/utils/moderationMessages';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react'; // Bổ sung useState
 
 interface Props {
   open: boolean;
@@ -18,6 +18,9 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
   const [form] = Form.useForm<CreatePostInput>();
   const { user } = useAuth();
   const notify = useNotify();
+  
+  // 1. Khai báo state theo dõi trạng thái gửi dữ liệu
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open && editPost) {
@@ -36,14 +39,15 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
   const handleOk = async () => {
     let values;
     try {
-      // 1. Check lỗi hiển thị trên Form (Frontend)
       values = await form.validateFields();
     } catch (e) {
-      // Nếu user nhập sai rules của antd (ví dụ chưa đủ min: 12), form tự đỏ, không cần làm gì thêm
       return; 
     }
 
     if (!user) return;
+
+    // 2. Bắt đầu quá trình submit -> Khóa nút lại và hiện vòng quay loading
+    setIsSubmitting(true);
 
     const payload = {
       title: values.title.trim(),
@@ -54,6 +58,7 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
     };
 
     try {
+      console.log('📦 Payload gửi đi:', payload);
       if (editPost) {
         const updated = await postService.update(editPost.id, payload);
         notify.success('Đã cập nhật bài viết');
@@ -62,9 +67,10 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
       } else {
         const post = await postService.create(payload, {
           id: user.id,
-          displayName: user.displayName,
+          displayName: user.displayName || "",
           role: user.role,
         });
+        console.log('✅ Phản hồi thành công:', post);
         if (post.moderationStatus === 'published') {
           notify.notifyEmail('Bài đăng mới', `Có bài mới: "${post.title}" — thông báo đã gửi (giả lập).`);
         }
@@ -73,8 +79,12 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
         if (post.moderationStatus === 'published') onCreated(post.id);
       }
     } catch (error: any) {
-      console.error('Lỗi từ Backend:', error);
-      message.error('Dữ liệu gửi đi bị thiếu hoặc sai định dạng. Kiểm tra lại nhé!');
+      console.error('❌ Lỗi từ Backend:', error);
+      const errorMsg = error?.message || 'Dữ liệu gửi đi bị thiếu hoặc sai định dạng. Kiểm tra lại nhé!';
+      message.error(errorMsg);
+    } finally {
+      // 3. Xong xuôi (dù lỗi hay thành công) thì mở khóa nút
+      setIsSubmitting(false);
     }
   };
 
@@ -86,6 +96,8 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
       onOk={handleOk}
       okText={editPost ? 'Cập nhật' : 'Đăng'}
       width={640}
+      // 4. Báo cho Modal của antd biết đang loading để nó khóa nút OK lại
+      confirmLoading={isSubmitting} 
     >
       <Form form={form} layout="vertical" initialValues={{ tags: [], difficulty: 'medium', bounty: 0 }}>
         <Form.Item label="Tiêu đề" name="title" rules={[{ required: true, min: 12 }]}>

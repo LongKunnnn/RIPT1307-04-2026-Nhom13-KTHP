@@ -8,7 +8,7 @@ import {
   HomeOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
-  SecurityScanOutlined, // <-- 1. Gọi thêm Icon quét radar ở đây
+  SecurityScanOutlined, // 
 } from '@ant-design/icons';
 import { Badge } from 'antd';
 import { moderationService } from '@/services/moderation/moderationService';
@@ -32,19 +32,18 @@ export default function AdminShell({ children }: AdminShellProps) {
     moderationService.countQueue().then(setQueueCount).catch(() => setQueueCount(0));
   }, [path]);
 
-  // 2. Dạy nó nhận diện link Check Var để làm sáng nút trên Menu
   const selected = path.includes('/moderation')
     ? 'moderation'
     : path.includes('/users')
       ? 'users'
       : path.includes('/posts')
         ? 'posts'
-        : path.includes('/check-var') 
-          ? 'check-var'
+        : path.includes('/suspicious-users') 
+          ? 'suspicious-users'
           : 'dashboard';
 
   return (
-    <RequireRole roles={['ADMIN']}>
+    <RequireRole roles={['admin']}>
       <Layout className={styles.adminRoot}>
         <Sider width={240} className={styles.sider} breakpoint="lg" collapsedWidth={0}>
           <div className={styles.logo}>SV Forum Admin</div>
@@ -66,8 +65,7 @@ export default function AdminShell({ children }: AdminShellProps) {
                 ),
               },
               { key: 'users', icon: <TeamOutlined />, label: <Link to={ROUTES.admin.users}>Người dùng</Link> },
-              // 3. BƠM NÚT CHECK VAR VÀO ĐÂY NÀY
-              { key: 'check-var', icon: <SecurityScanOutlined />, label: <Link to={ROUTES.admin.checkVar}>Check Var Gian Lận</Link> },
+              { key: 'suspicious-users', icon: <SecurityScanOutlined />, label: <Link to={ROUTES.admin.checkVar}>Nghi Vấn Gian Lận</Link> },
             ]}
           />
           <Link to={ROUTES.home} className={styles.backForum}>

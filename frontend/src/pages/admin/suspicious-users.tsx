@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Popconfirm, Tag, message } from 'antd';
 import { apiFetch } from '@/services/api/client';
-import styles from './SuspiciousUsers.less';
+import styles from './suspicious-users.less';
 
 export default function SuspiciousUsers() {
   const [data, setData] = useState([]);
@@ -10,7 +10,6 @@ export default function SuspiciousUsers() {
   const fetchSuspicious = async () => {
     setLoading(true);
     try {
-      // Dùng hàm apiFetch của team mày để nó tự nhét token vào header
       const res = await apiFetch('/api/admin/suspicious-votes', { method: 'GET' });
       setData(res as any);
     } catch (error) {

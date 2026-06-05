@@ -10,9 +10,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.2",
-    "@umijs/max": "^4.6.57",
-    "@umijs/plugins": "^4.6.57",
     "antd": "^6.3.7",
+    "socket.io-client": "^4.8.3",
     "umi": "^4.6.55"
   },
   "devDependencies": {

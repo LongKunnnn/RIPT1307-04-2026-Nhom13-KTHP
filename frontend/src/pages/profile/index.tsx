@@ -11,8 +11,8 @@ import {
   Input,
   DatePicker,
   message,
-  Alert,
   Skeleton,
+  Upload,
 } from "antd";
 import {
   UserOutlined,
@@ -24,7 +24,9 @@ import {
   BankOutlined,
   SaveOutlined,
   CloseOutlined,
+  CameraOutlined,
 } from "@ant-design/icons";
+import { fileToAvatarDataUrl } from "@/utils/avatar";
 import dayjs from "dayjs";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/auth/authService";
@@ -45,6 +47,7 @@ export default function MyProfilePage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+  const [avatarPreview, setAvatarPreview] = useState<string | undefined>();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -53,20 +56,39 @@ export default function MyProfilePage() {
     }
     if (authUser) {
       setUser(authUser);
+      const avatar = authUser.avatar_url ?? authUser.avatarUrl;
+      setAvatarPreview(avatar);
       form.setFieldsValue({
         ...authUser,
+        displayName: authUser.full_name,
+        avatarUrl: avatar,
         birthday: authUser.birthday ? dayjs(authUser.birthday) : undefined,
       });
     }
   }, [authUser, isAuthenticated, form]);
+
+  const onAvatarPick = async (file: File) => {
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file);
+      setAvatarPreview(dataUrl);
+      form.setFieldValue("avatarUrl", dataUrl);
+      message.success("Đã chọn ảnh — nhấn Lưu để cập nhật avatar");
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : "Không thể xử lý ảnh");
+    }
+    return false;
+  };
 
   const onSave = async (values: any) => {
     setLoading(true);
     try {
       const updated = await updateProfile({
         ...values,
+        displayName: values.displayName,
+        avatarUrl: values.avatarUrl ?? avatarPreview,
         birthday: values.birthday?.format("YYYY-MM-DD"),
       });
+      setAvatarPreview(updated.avatar_url ?? updated.avatarUrl);
       setUser(updated);
       setEditing(false);
       message.success("Đã cập nhật hồ sơ");
@@ -98,16 +120,50 @@ export default function MyProfilePage() {
         }
       >
         <div className={styles.avatarSection}>
-          <Avatar size={100} icon={<UserOutlined />} src={user.avatarUrl} />
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Avatar
+              size={100}
+              icon={<UserOutlined />}
+              src={avatarPreview ?? user.avatar_url ?? user.avatarUrl}
+            />
+            {editing && (
+              <Upload
+                accept="image/*"
+                showUploadList={false}
+                beforeUpload={onAvatarPick}
+              >
+                <Button
+                  type="primary"
+                  shape="circle"
+                  icon={<CameraOutlined />}
+                  size="small"
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                  }}
+                  title="Đổi ảnh đại diện"
+                />
+              </Upload>
+            )}
+          </div>
+          {editing && (
+            <Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
+              Nhấn biểu tượng máy ảnh để chọn ảnh từ thiết bị (JPG, PNG, tối đa 5MB)
+            </Text>
+          )}
           <Title level={2} className={styles.displayName}>
-            {user.displayName}
+            {user.full_name}
           </Title>
           <Text className={styles.username}>@{user.username}</Text>
           <div className={styles.statsRow}>
             <Space direction="vertical" align="center">
               <TrophyOutlined style={{ fontSize: 24, color: "#f59e0b" }} />
               <Text strong>
-                {user.rewardPoints?.toLocaleString("vi-VN")} điểm
+                {(user.reward_points ?? user.rewardPoints ?? 0).toLocaleString(
+                  "vi-VN",
+                )}{" "}
+                điểm
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Điểm thưởng
@@ -119,6 +175,9 @@ export default function MyProfilePage() {
         {editing ? (
           <div className={styles.infoSection}>
             <Form form={form} layout="vertical" onFinish={onSave}>
+              <Form.Item name="avatarUrl" hidden>
+                <Input />
+              </Form.Item>
               <div className={styles.infoGrid}>
                 <Form.Item
                   name="displayName"
@@ -179,7 +238,12 @@ export default function MyProfilePage() {
                 </Button>
                 <Button
                   icon={<CloseOutlined />}
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    const avatar = user.avatar_url ?? user.avatarUrl;
+                    setAvatarPreview(avatar);
+                    form.setFieldValue("avatarUrl", avatar);
+                  }}
                 >
                   Hủy
                 </Button>
@@ -216,7 +280,8 @@ export default function MyProfilePage() {
               <div className={styles.infoItem}>
                 <label>Ngày tham gia</label>
                 <span>
-                  <CalendarOutlined /> {formatViDate(user.createdAt)}
+                  <CalendarOutlined />{" "}
+                  {formatViDate(user.created_at ?? user.createdAt)}
                 </span>
               </div>
               {user.bio && (
@@ -232,8 +297,8 @@ export default function MyProfilePage() {
               <GlobalOutlined /> Liên kết mạng xã hội
             </div>
             <div className={styles.socialLinks}>
-              {user.socialLinks &&
-                Object.entries(user.socialLinks).map(
+              {(user.social_links || user.socialLinks) &&
+                Object.entries(user.social_links || user.socialLinks || {}).map(
                   ([key, url]) =>
                     url && (
                       <Button
@@ -242,7 +307,9 @@ export default function MyProfilePage() {
                         className={styles.socialBtn}
                         onClick={() =>
                           window.open(
-                            url.startsWith("http") ? url : `https://${url}`,
+                            (url as string).startsWith("http")
+                              ? (url as string)
+                              : `https://${url}`,
                             "_blank",
                           )
                         }
@@ -251,8 +318,10 @@ export default function MyProfilePage() {
                       </Button>
                     ),
                 )}
-              {(!user.socialLinks ||
-                Object.values(user.socialLinks).every((v) => !v)) && (
+              {((!user.social_links && !user.socialLinks) ||
+                Object.values(
+                  user.social_links || user.socialLinks || {},
+                ).every((v) => !v)) && (
                 <Text type="secondary">Chưa có liên kết mạng xã hội</Text>
               )}
             </div>
