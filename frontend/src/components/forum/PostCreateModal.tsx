@@ -54,6 +54,7 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
     };
 
     try {
+      console.log('📦 Payload gửi đi:', payload);
       if (editPost) {
         const updated = await postService.update(editPost.id, payload);
         notify.success('Đã cập nhật bài viết');
@@ -65,6 +66,7 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
           displayName: user.displayName,
           role: user.role,
         });
+        console.log('✅ Phản hồi thành công:', post);
         if (post.moderationStatus === 'published') {
           notify.notifyEmail('Bài đăng mới', `Có bài mới: "${post.title}" — thông báo đã gửi (giả lập).`);
         }
@@ -73,8 +75,9 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
         if (post.moderationStatus === 'published') onCreated(post.id);
       }
     } catch (error: any) {
-      console.error('Lỗi từ Backend:', error);
-      message.error('Dữ liệu gửi đi bị thiếu hoặc sai định dạng. Kiểm tra lại nhé!');
+      console.error('❌ Lỗi từ Backend:', error);
+      const errorMsg = error?.message || 'Dữ liệu gửi đi bị thiếu hoặc sai định dạng. Kiểm tra lại nhé!';
+      message.error(errorMsg);
     }
   };
 

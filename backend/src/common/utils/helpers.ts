@@ -1,10 +1,10 @@
-export function toFrontendRole(role: string): 'ADMIN' | 'LECTURER' | 'STUDENT' {
-  const map: Record<string, 'ADMIN' | 'LECTURER' | 'STUDENT'> = {
-    admin: 'ADMIN',
-    teacher: 'LECTURER',
-    student: 'STUDENT',
+export function toFrontendRole(role: string): 'admin' | 'teacher' | 'student' {
+  const map: Record<string, 'admin' | 'teacher' | 'student'> = {
+    admin: 'admin',
+    teacher: 'teacher',
+    student: 'student',
   };
-  return map[role] ?? 'STUDENT';
+  return map[role] ?? 'student';
 }
 
 export function toBackendRole(role: string): 'admin' | 'teacher' | 'student' {

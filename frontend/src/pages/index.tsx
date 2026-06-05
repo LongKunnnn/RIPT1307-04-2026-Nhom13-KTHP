@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PostCreateModal } from "@/components/forum/PostCreateModal";
 import { TagExplorerPanel } from "@/components/forum/TagExplorerPanel";
 import { LeaderboardPanel } from "@/components/forum/LeaderboardPanel";
+import { MemberSearchPanel } from "@/components/forum/MemberSearchPanel";
 import { RewardsShopModal } from "@/components/forum/RewardsShopModal";
 import {
   Button,
@@ -55,7 +56,7 @@ import styles from "./index.less";
 
 const { Title, Paragraph, Text } = Typography;
 
-type PageTab = "home" | "mine" | "tags" | "leaderboard";
+type PageTab = "home" | "mine" | "tags" | "leaderboard" | "members";
 
 const SORT_TABS: { key: PostFeedSort; label: string }[] = [
   { key: "newest", label: "Mới nhất" },
@@ -87,6 +88,7 @@ function parsePageTab(search: string): PageTab {
   if (tab === "mine" || tab === "questions") return "mine";
   if (tab === "tags") return "tags";
   if (tab === "leaderboard") return "leaderboard";
+  if (tab === "members") return "members";
   return "home";
 }
 
@@ -709,6 +711,24 @@ export default function HomePage() {
     </main>
   );
 
+  const renderMembersView = () => (
+    <main className={styles.mainCol} id="members">
+      <div className={styles.mainHead}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>
+            Tìm thành viên
+          </Title>
+          <Text type="secondary" className={styles.qCount}>
+            Tìm kiếm toàn diễn đàn và xem hồ sơ, bài đăng của họ
+          </Text>
+        </div>
+      </div>
+      <div style={{ padding: "24px" }}>
+        <MemberSearchPanel />
+      </div>
+    </main>
+  );
+
   const renderTagsView = () => (
     <main className={styles.mainCol} id="tags">
       <div className={styles.mainHead}>
@@ -740,6 +760,8 @@ export default function HomePage() {
         return renderTagsView();
       case "leaderboard":
         return renderLeaderboardView();
+      case "members":
+        return renderMembersView();
       case "home":
       default:
         return renderPublicFeed();
@@ -800,6 +822,13 @@ export default function HomePage() {
             >
               <TeamOutlined /> Bảng xếp hạng
             </button>
+            <button
+              type="button"
+              className={`${styles.navItem} ${activeTab === "members" ? styles.navItemActive : ""}`}
+              onClick={() => history.push(`${ROUTES.home}?tab=members`)}
+            >
+              <TeamOutlined /> Tìm thành viên
+            </button>
           </nav>
         </aside>
 
@@ -846,7 +875,7 @@ export default function HomePage() {
                     />
                     Điểm thưởng:{" "}
                     <strong>
-                      {(user.rewardPoints ?? 0).toLocaleString("vi-VN")}
+                      {(user.reward_points ?? user.rewardPoints ?? 0).toLocaleString("vi-VN")}
                     </strong>
                   </Text>
                   <Button
@@ -860,34 +889,7 @@ export default function HomePage() {
               </Card>
             )}
 
-            {activeTab === "mine" && isAuthenticated && user && (
-              <Card
-                className={styles.railCard}
-                bordered={false}
-                title="Tóm tắt"
-              >
-                <div className={styles.mineSummary}>
-                  <button
-                    type="button"
-                    className={styles.mineSummaryRow}
-                    onClick={() => goMine("authored")}
-                  >
-                    <QuestionCircleOutlined />
-                    <span>Câu hỏi đã đăng</span>
-                    <strong>{authoredTotal}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.mineSummaryRow}
-                    onClick={() => goMine("followed")}
-                  >
-                    <BellOutlined />
-                    <span>Đang theo dõi</span>
-                    <strong>{followedCount}</strong>
-                  </button>
-                </div>
-              </Card>
-            )}
+
 
             <Card
               className={styles.railCard}

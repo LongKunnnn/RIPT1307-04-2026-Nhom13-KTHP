@@ -40,7 +40,7 @@ export default function AdminShell({ children }: AdminShellProps) {
         : 'dashboard';
 
   return (
-    <RequireRole roles={['ADMIN']}>
+    <RequireRole roles={['admin']}>
       <Layout className={styles.adminRoot}>
         <Sider width={240} className={styles.sider} breakpoint="lg" collapsedWidth={0}>
           <div className={styles.logo}>SV Forum Admin</div>
@@ -72,7 +72,7 @@ export default function AdminShell({ children }: AdminShellProps) {
           <Header className={styles.header}>
             <Typography.Text strong>Quản trị hệ thống</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={logout}>
-              {user?.displayName} — Đăng xuất
+              {user?.full_name} — Đăng xuất
             </Button>
           </Header>
           <Content className={styles.content}>

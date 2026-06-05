@@ -18,16 +18,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const isHttpException = exception instanceof HttpException;
-    const status = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    
+    const status = isHttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+
     // Rút trích thông báo lỗi.
-    const message = isHttpException 
-      ? exception.getResponse() 
+    const message = isHttpException
+      ? exception.getResponse()
       : 'Lỗi hệ thống nội bộ, vui lòng thử lại sau.';
 
-    // Ghi log chi tiết xuống terminal
-    if (!isHttpException) {
-      this.logger.error(`[${request.method}] ${request.url}`, exception instanceof Error ? exception.stack : 'Unknown Error');
+    const isExpectedLoginFailure =
+      request.url.includes('/auth/login') &&
+      status === HttpStatus.UNAUTHORIZED;
+
+    if (isExpectedLoginFailure) {
+      this.logger.debug(
+        `Login failed for ${(request.body as { email?: string })?.email ?? 'unknown'}`,
+      );
+    } else {
+      this.logger.warn(
+        `${request.method} ${request.url} → ${status}`,
+      );
+      if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        this.logger.error(exception);
+        if (exception instanceof Error) this.logger.error(exception.stack);
+      }
     }
 
     // Format dữ liệu trả về cho Frontend

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { ModerationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toFrontendRole, AuthUserPayload } from '../../common/utils/helpers';
-import { scanContent, sumVoteScore } from '../../common/utils/content-moderation';
+import { scanContent } from '../../common/utils/content-moderation';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comments.dto';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class CommentsService {
       authorUsername: c.author.username,
       authorRole: toFrontendRole(c.author.role),
       createdAt: c.created_at.toISOString(),
-      voteScore: await sumVoteScore(this.prisma, c.id, 'comment'),
+      voteScore: c.vote_score,
       isAccepted: c.is_accepted,
       moderationStatus: c.moderation_status,
       moderationFlags: matchedWords?.length ? matchedWords : undefined,
