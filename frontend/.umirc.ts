@@ -19,4 +19,5 @@ export default defineConfig({
     { path: "/admin/check-var", component: "admin/SuspiciousUsers" },
   ],
   npmClient: 'npm',
+  esbuildMinifyIIFE: true,
 });
