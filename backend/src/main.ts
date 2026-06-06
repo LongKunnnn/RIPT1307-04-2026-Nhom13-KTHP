@@ -39,8 +39,11 @@ async function bootstrap() {
     .map((o) => o.trim())
     .filter(Boolean);
 
+  // Thêm domain production vào danh sách cho phép
+  allowedOrigins.push('https://unihub-ript.netlify.app');
+
   app.enableCors({
-    origin: 'https://unihub-ript.netlify.app',
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // Cho phép đính kèm Cookie/Token
   });
