@@ -193,4 +193,31 @@ export class AdminController {
   deletePost(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.deletePost(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Get('admin/suspicious-votes')
+  @ApiOperation({ summary: 'Lấy danh sách các tài khoản buff bẩn (tương tác chéo)' })
+  getSuspiciousVotes() {
+    return this.adminService.getSuspiciousVotes(); 
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Post('admin/users/:id/reset-points')
+  @ApiOperation({ summary: 'Reset điểm uy tín về 0' })
+  resetUserPoints(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.resetPoints(id); 
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @Post('admin/users/:id/ban')
+  @ApiOperation({ summary: 'Khóa tài khoản vĩnh viễn' })
+  banUser(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUserPayload) {
+    return this.adminService.setLocked(id, true, user.id); 
+  }
 }

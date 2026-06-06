@@ -18,6 +18,8 @@ export default defineConfig({
     { path: "/admin/posts/:id", component: "admin/posts/$id" },
     { path: "/admin/users", component: "admin/users" },
     { path: "/admin/moderation", component: "admin/moderation" },
+    { path: "/admin/suspicious-users", component: "admin/suspicious-users" },
+
   ],
   npmClient: 'npm',
 });

@@ -8,6 +8,7 @@ import {
   HomeOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
+  SecurityScanOutlined, // 
 } from '@ant-design/icons';
 import { Badge } from 'antd';
 import { moderationService } from '@/services/moderation/moderationService';
@@ -37,7 +38,9 @@ export default function AdminShell({ children }: AdminShellProps) {
       ? 'users'
       : path.includes('/posts')
         ? 'posts'
-        : 'dashboard';
+        : path.includes('/suspicious-users') 
+          ? 'suspicious-users'
+          : 'dashboard';
 
   return (
     <RequireRole roles={['admin']}>
@@ -62,6 +65,7 @@ export default function AdminShell({ children }: AdminShellProps) {
                 ),
               },
               { key: 'users', icon: <TeamOutlined />, label: <Link to={ROUTES.admin.users}>Người dùng</Link> },
+              { key: 'suspicious-users', icon: <SecurityScanOutlined />, label: <Link to={ROUTES.admin.checkVar}>Nghi Vấn Gian Lận</Link> },
             ]}
           />
           <Link to={ROUTES.home} className={styles.backForum}>

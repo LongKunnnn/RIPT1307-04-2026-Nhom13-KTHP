@@ -24,5 +24,6 @@ export const ROUTES = {
     postDetail: (id: string) => `/admin/posts/${encodeURIComponent(id)}`,
     users: '/admin/users',
     moderation: '/admin/moderation',
+    checkVar: '/admin/suspicious-users'
   },
 } as const;

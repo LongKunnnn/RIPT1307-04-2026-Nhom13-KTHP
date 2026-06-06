@@ -11,7 +11,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private postsService: PostsService,
-  ) {}
+  ) { }
 
   async getStats() {
     const [postCount, userCount, commentCount, lockedUserCount, pendingPosts, pendingComments, openReportCount] =
@@ -270,6 +270,94 @@ export class AdminService {
     return this.postsService.getById(id, null, true);
   }
 
+  // hàm chống buff
+  async getSuspiciousVotes() {
+    // Ốp tên bảng chuẩn theo @@map: votes, posts, comments
+    const pairs: any[] = await this.prisma.$queryRaw`
+      WITH vote_relations AS (
+        SELECT
+          v.user_id AS voter_id,
+          COALESCE(p.author_id, c.author_id) AS receiver_id
+        FROM \`votes\` v
+        LEFT JOIN \`posts\` p ON (v.target_type = 'post' OR v.target_type = 'POST') AND v.target_id = p.id
+        LEFT JOIN \`comments\` c ON (v.target_type = 'comment' OR v.target_type = 'COMMENT') AND v.target_id = c.id
+        WHERE COALESCE(p.author_id, c.author_id) IS NOT NULL
+      ),
+      total_votes AS (
+        SELECT voter_id, CAST(COUNT(*) AS SIGNED) AS total_count
+        FROM vote_relations
+        GROUP BY voter_id
+      ),
+      pair_votes AS (
+        SELECT voter_id, receiver_id, CAST(COUNT(*) AS SIGNED) AS pair_count
+        FROM vote_relations
+        WHERE voter_id != receiver_id
+        GROUP BY voter_id, receiver_id
+      )
+      SELECT
+        pv.voter_id,
+        pv.receiver_id,
+        pv.pair_count,
+        tv.total_count,
+        ROUND((pv.pair_count / tv.total_count) * 100, 2) AS ratio_percent
+      FROM pair_votes pv
+      JOIN total_votes tv ON pv.voter_id = tv.voter_id
+      WHERE
+        pv.pair_count >= 5
+        AND tv.total_count >= 10
+        AND (pv.pair_count / tv.total_count) >= 0.8
+      ORDER BY ratio_percent DESC;
+    `;
+
+    if (pairs.length === 0) return [];
+
+    const uniqueUserIds = Array.from(
+      new Set(pairs.flatMap(pair => [pair.voter_id, pair.receiver_id]))
+    );
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: uniqueUserIds } },
+      select: { id: true, full_name: true, email: true, reward_points: true }
+    });
+
+    const userMap = new Map<number, typeof users[0]>();
+    users.forEach(user => userMap.set(user.id, user));
+
+    const result = pairs.map((pair) => {
+      const voter = userMap.get(pair.voter_id);
+      const receiver = userMap.get(pair.receiver_id);
+
+      return {
+        key: `${pair.voter_id}-${pair.receiver_id}`,
+        pair_count: Number(pair.pair_count), 
+        total_count: Number(pair.total_count),
+        ratio: Number(pair.ratio_percent),
+        voter: voter ? { ...voter, name: voter.full_name } : null,
+        receiver: receiver ? { ...receiver, name: receiver.full_name } : null,
+      };
+    });
+
+    return result.filter(item => item.voter && item.receiver);
+  }
+  async resetPoints(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Người dùng không tồn tại');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { reward_points: 0 },
+    });
+  }
+
+  async banUser(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Người dùng không tồn tại');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { is_active: false }, 
+    });
+  }
   async deletePost(id: number) {
     await this.postsService.delete(id);
     return { success: true };
