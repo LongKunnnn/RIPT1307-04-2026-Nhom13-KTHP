@@ -40,7 +40,7 @@ async function bootstrap() {
     .filter(Boolean);
 
   // Thêm domain production vào danh sách cho phép
-  allowedOrigins.push('https://unihub-ript.netlify.app');
+  allowedOrigins.push('https://svforum-ript.netlify.app');
 
   app.enableCors({
     origin: allowedOrigins,

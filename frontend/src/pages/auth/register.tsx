@@ -34,7 +34,6 @@ export default function RegisterPage() {
     <div className={styles.wrap}>
       <div className={styles.splitContainer}>
         <div className={styles.leftPane}>
-          <div className={styles.logoBox}>CLASSIC DESIGNS</div>
         </div>
         <div className={styles.rightPane}>
           <div className={styles.header} style={{ marginBottom: 30 }}>
