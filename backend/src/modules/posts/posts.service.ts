@@ -4,14 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { makeExcerpt, slugify, toFrontendRole, AuthUserPayload } from '../../common/utils/helpers';
 import { scanContent } from '../../common/utils/content-moderation';
 import { CreatePostDto, ListPostsQueryDto, UpdatePostDto } from './dto/posts.dto';
-
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 type PostWithRelations = Prisma.PostGetPayload<{
   include: { author: true; post_tags: { include: { tag: true } } };
 }>;
 
 @Injectable()
 export class PostsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService,private notiService: NotificationsService,) { }
 
   async mapPost(post: PostWithRelations, viewerId?: number) {
     const matchedWords = Array.isArray(post.matched_words) ? (post.matched_words as string[]) : undefined;
@@ -251,6 +252,19 @@ export class PostsService {
       await tx.post.update({ where: { id: postId }, data: { bounty: 0, accepted_comment_id: commentId } });
       await tx.comment.update({ where: { id: commentId }, data: { is_accepted: true } });
     }, { timeout: 30000 });
+
+    if (comment.author_id !== authorId) {
+      this.notiService.createNotification({
+        userId: comment.author_id,
+        senderId: authorId,
+        postId: postId,
+        commentId: commentId,
+        type: NotificationType.system, // Hoặc NotificationType.answer_accepted nếu sếp đã thêm enum
+        title: 'Câu trả lời của bạn đã được chấp nhận!',
+        content: `Chúc mừng! Câu trả lời của bạn cho bài viết "${post.title.slice(0, 20)}..." đã được chọn.`,
+        linkPath: `/questions/${postId}#comment-${commentId}`,
+      }).catch(err => console.error("DEBUG [NOTI ERROR]:", err));
+    }
 
     return { acceptedCommentId: String(commentId), bountyAwarded: bounty, answererId: String(comment.author_id) };
   }
