@@ -12,9 +12,9 @@ async function bootstrap() {
   // 1. Bảo mật HTTP headers
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
-    app.use(helmet()); 
+    app.use(helmet());
   } else {
-    app.use(helmet({ contentSecurityPolicy: false })); 
+    app.use(helmet({ contentSecurityPolicy: false }));
   }
 
   // 2. [QUAN TRỌNG] Đặt tiền tố 'api' cho mọi endpoint (để khớp với Frontend)
@@ -39,19 +39,12 @@ async function bootstrap() {
     .map((o) => o.trim())
     .filter(Boolean);
 
+  // Thêm domain production vào danh sách cho phép
+  allowedOrigins.push('https://unihub-ript.netlify.app');
+
   app.enableCors({
-    origin: (origin, callback) => {
-      // Cho phép nếu không có origin (như Postman), hoặc nằm trong whitelist, hoặc là bất kỳ localhost nào
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        /^http:\/\/localhost:\d+$/.test(origin)
-      ) {
-        callback(null, true);
-        return;
-      }
-      callback(null, false);
-    },
+    origin: allowedOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // Cho phép đính kèm Cookie/Token
   });
 
@@ -63,7 +56,7 @@ async function bootstrap() {
 
   // 7. Khởi động Server
   await app.listen(port);
-  
+
   console.log(`==================================================`);
   console.log(`🛡️ [Security] Helmet & CORS      : Đã bật`);
   console.log(`🌐 [CORS] Cho phép truy cập từ : ${allowedOrigins.join(', ')} + localhost:*`);

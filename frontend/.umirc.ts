@@ -1,8 +1,6 @@
 import { defineConfig } from "umi";
 
 export default defineConfig({
-  esbuildMinifyIIFE: true,
-  styles: ['@/styles/global.less'],
   routes: [
     { path: "/", component: "index" },
     { path: "/login", component: "auth/login" },
@@ -22,4 +20,7 @@ export default defineConfig({
 
   ],
   npmClient: 'npm',
+
+  esbuildMinifyIIFE: true,
 });
+

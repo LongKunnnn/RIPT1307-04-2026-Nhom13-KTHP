@@ -11,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [demoToken, setDemoToken] = useState('');
 
+
   const onFinish = async (v: { email: string }) => {
     setLoading(true);
     setError('');
@@ -23,6 +24,7 @@ export default function ForgotPasswordPage() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Yêu cầu thất bại');
+
     } finally {
       setLoading(false);
     }

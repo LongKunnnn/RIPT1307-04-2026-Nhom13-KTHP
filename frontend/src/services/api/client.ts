@@ -5,7 +5,8 @@ const USER_KEY = 'svforum_user';
 export function getApiBaseUrl(): string {
   // Trả về đúng gốc localhost:3000 thôi, vì các hàm dưới kia đã tự cộng thêm /api rồi
   let baseUrl = process.env.UMI_APP_API_BASE_URL || 'http://localhost:3000';
-  
+
+
   // Xóa gạch chéo ở cuối (nếu có) để lúc cộng chuỗi không bị lỗi //
   if (baseUrl.endsWith('/')) {
     baseUrl = baseUrl.slice(0, -1);
@@ -14,7 +15,7 @@ export function getApiBaseUrl(): string {
   if (baseUrl.endsWith('/api')) {
     baseUrl = baseUrl.slice(0, -4);
   }
-  
+
   return baseUrl;
 }
 
@@ -157,9 +158,10 @@ export async function apiFetch<T>(
       }
     }
     clearTokens();
+
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
       window.location.href = '/login';
-      return new Promise(() => {}) as Promise<T>;
+      return new Promise(() => { }) as Promise<T>;
     }
     throw new ApiError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401);
   }

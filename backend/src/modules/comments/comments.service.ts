@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { ModerationStatus, NotificationType } from '@prisma/client';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { ModerationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toFrontendRole, AuthUserPayload } from '../../common/utils/helpers';
 import { scanContent } from '../../common/utils/content-moderation';
@@ -11,7 +11,7 @@ export class CommentsService {
   constructor(
     private prisma: PrismaService,
     private notiService: NotificationsService,
-  ) {}
+  ) { }
 
   private mapComment(c: any) {
     const matchedWords = Array.isArray(c.matched_words) ? (c.matched_words as string[]) : undefined;
@@ -65,7 +65,7 @@ export class CommentsService {
   }
 
   async add(postId: number, dto: CreateCommentDto, user: AuthUserPayload) {
-    const post = await this.prisma.post.findFirst({ 
+    const post = await this.prisma.post.findFirst({
       where: { id: postId, deleted_at: null },
       select: { id: true, author_id: true, title: true }
     });
@@ -83,7 +83,26 @@ export class CommentsService {
       if (parent.parent_id !== null) finalParentId = parent.parent_id;
     }
 
-    const scan = await scanContent(this.prisma, dto.body.trim());
+    const text = dto.body.trim();
+
+    // --- SPAM PREVENTION: Cooldown và Duplicate Content ---
+    const lastComment = await this.prisma.comment.findFirst({
+      where: { author_id: user.id },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (lastComment) {
+      const timeDiff = Date.now() - lastComment.created_at.getTime();
+      if (timeDiff < 15000) { // 15 seconds cooldown
+        throw new HttpException('Bạn thao tác quá nhanh. Vui lòng đợi 15 giây trước khi bình luận tiếp.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+      if (lastComment.content === text) {
+        throw new BadRequestException('Nội dung bình luận bị trùng lặp với bình luận trước đó.');
+      }
+    }
+    // ----------------------------------------------------
+
+    const scan = await scanContent(this.prisma, text);
 
     const comment = await this.prisma.$transaction(async (tx) => {
       const c = await tx.comment.create({
@@ -95,7 +114,7 @@ export class CommentsService {
           moderation_status: scan.status,
           matched_words: scan.matchedWords.length ? scan.matchedWords : [],
         },
-        include: { author: true }, 
+        include: { author: true },
       });
 
       if (!finalParentId && scan.status === ModerationStatus.published) {
@@ -106,35 +125,35 @@ export class CommentsService {
 
     if (scan.status === ModerationStatus.published) {
       if (targetAuthorId && targetAuthorId !== user.id) {
-         await this.notiService.createNotification({
-           userId: targetAuthorId,
-           senderId: user.id,
-           postId: postId,
-           commentId: comment.id,
-           type: 'reply' as any,
-           title: 'Có người trả lời bình luận',
-           content: `${comment.author.full_name} vừa trả lời bình luận của bạn.`,
-           linkPath: `/questions/${postId}#comment-${comment.id}`,
-         });
+        await this.notiService.createNotification({
+          userId: targetAuthorId,
+          senderId: user.id,
+          postId: postId,
+          commentId: comment.id,
+          type: 'reply' as any,
+          title: 'Có người trả lời bình luận',
+          content: `${comment.author.full_name} vừa trả lời bình luận của bạn.`,
+          linkPath: `/questions/${postId}#comment-${comment.id}`,
+        });
       } else if (!finalParentId && post.author_id !== user.id) {
-         await this.notiService.createNotification({
-           userId: post.author_id,
-           senderId: user.id,
-           postId: postId,
-           commentId: comment.id,
-           type: 'comment' as any,
-           title: 'Bình luận mới',
-           content: `${comment.author.full_name} vừa bình luận bài viết "${post.title}".`,
-           linkPath: `/questions/${postId}#comment-${comment.id}`,
-         });
+        await this.notiService.createNotification({
+          userId: post.author_id,
+          senderId: user.id,
+          postId: postId,
+          commentId: comment.id,
+          type: 'comment' as any,
+          title: 'Bình luận mới',
+          content: `${comment.author.full_name} vừa bình luận bài viết "${post.title}".`,
+          linkPath: `/questions/${postId}#comment-${comment.id}`,
+        });
       }
     }
     return this.mapComment(comment);
   }
 
   async update(commentId: number, userId: number, dto: UpdateCommentDto) {
-    const comment = await this.prisma.comment.findFirst({ 
-      where: { id: commentId, deleted_at: null }, include: { author: true } 
+    const comment = await this.prisma.comment.findFirst({
+      where: { id: commentId, deleted_at: null }, include: { author: true }
     });
     if (!comment) throw new NotFoundException('Không tìm thấy bình luận!');
     if (comment.author_id !== userId) throw new ForbiddenException('Không có quyền sửa!');
@@ -146,7 +165,7 @@ export class CommentsService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const c = await tx.comment.update({
         where: { id: commentId },
-        data: { 
+        data: {
           content: dto.body.trim(),
           moderation_status: newStatus,
           matched_words: scan.matchedWords.length ? scan.matchedWords : [],

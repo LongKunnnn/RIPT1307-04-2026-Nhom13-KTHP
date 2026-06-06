@@ -57,21 +57,31 @@ function CommentItem({
 
   const submitReply = async () => {
     if (!user || !replyText.trim()) return;
-    const c = await commentService.add(postId, replyText, node.id, {
-      id: user.id,
-      displayName: user.displayName,
-      role: user.role,
-    });
-    if (c.moderationStatus === "published") {
-      notify.notifyEmail(
-        "Phản hồi mới",
-        `${user.displayName} đã trả lời bình luận của bạn trên diễn đàn.`,
-      );
+    try {
+      const c = await commentService.add(postId, replyText, node.id, {
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+      });
+      if (c.moderationStatus === "published") {
+        notify.notifyEmail(
+          "Phản hồi mới",
+          `${user.displayName} đã trả lời bình luận của bạn trên diễn đàn.`,
+        );
+      }
+      message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
+      setReplyText("");
+      setReplyOpen(false);
+      onUpdated();
+    } catch (error: any) {
+      if (error?.status === 429) {
+        message.warning(error?.message || "Bạn thao tác quá nhanh. Vui lòng đợi 15 giây.");
+      } else if (error?.status === 400) {
+        message.warning(error?.message || "Nội dung bình luận bị trùng lặp.");
+      } else {
+        message.error(error?.message || "Có lỗi xảy ra khi gửi bình luận.");
+      }
     }
-    message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
-    setReplyText("");
-    setReplyOpen(false);
-    onUpdated();
   };
 
   return (
@@ -177,20 +187,30 @@ export function CommentThread({
 
   const submit = async () => {
     if (!user || !text.trim()) return;
-    const c = await commentService.add(postId, text, null, {
-      id: user.id,
-      displayName: user.displayName,
-      role: user.role,
-    });
-    if (c.moderationStatus === "published") {
-      notify.notifyEmail(
-        "Phản hồi mới",
-        "Có bình luận mới trên bài viết bạn theo dõi.",
-      );
+    try {
+      const c = await commentService.add(postId, text, null, {
+        id: user.id,
+        displayName: user.displayName,
+        role: user.role,
+      });
+      if (c.moderationStatus === "published") {
+        notify.notifyEmail(
+          "Phản hồi mới",
+          "Có bình luận mới trên bài viết bạn theo dõi.",
+        );
+      }
+      message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
+      setText("");
+      onUpdated();
+    } catch (error: any) {
+      if (error?.status === 429) {
+        message.warning(error?.message || "Bạn thao tác quá nhanh. Vui lòng đợi 15 giây.");
+      } else if (error?.status === 400) {
+        message.warning(error?.message || "Nội dung bình luận bị trùng lặp.");
+      } else {
+        message.error(error?.message || "Có lỗi xảy ra khi đăng bình luận.");
+      }
     }
-    message.info(moderationUserMessage(c.moderationStatus, c.moderationFlags));
-    setText("");
-    onUpdated();
   };
 
   return (
