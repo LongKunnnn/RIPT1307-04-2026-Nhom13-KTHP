@@ -18,8 +18,9 @@ export function formatViews(n: number) {
   return String(n);
 }
 
-export function roleLabel(role: UserRole): string {
-  switch (role) {
+export function roleLabel(role: UserRole | string): string {
+  const normalizedRole = role.toLowerCase() as UserRole;
+  switch (normalizedRole) {
     case "admin":
       return "Quản trị";
     case "teacher":
@@ -27,12 +28,13 @@ export function roleLabel(role: UserRole): string {
     case "student":
       return "Sinh viên";
     default:
-      return role;
+      return String(role);
   }
 }
 
-export function roleColor(role: UserRole) {
-  switch (role) {
+export function roleColor(role: UserRole | string) {
+  const normalizedRole = role.toLowerCase() as UserRole;
+  switch (normalizedRole) {
     case "admin":
       return "red";
     case "teacher":
