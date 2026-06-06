@@ -39,8 +39,10 @@ export function PostCreateModal({ open, onClose, onCreated, editPost }: Props) {
   const handleOk = async () => {
     let values;
     try {
+      // 1. Check lỗi hiển thị trên Form (Frontend)
       values = await form.validateFields();
     } catch (e) {
+      // Nếu user nhập sai rules của antd (ví dụ chưa đủ min: 12), form tự đỏ, không cần làm gì thêm
       return; 
     }
 

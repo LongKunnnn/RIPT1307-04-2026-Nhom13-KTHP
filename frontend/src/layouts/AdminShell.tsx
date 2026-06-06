@@ -76,7 +76,7 @@ export default function AdminShell({ children }: AdminShellProps) {
           <Header className={styles.header}>
             <Typography.Text strong>Quản trị hệ thống</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={logout}>
-              {user?.displayName} — Đăng xuất
+              {user?.full_name} — Đăng xuất
             </Button>
           </Header>
           <Content className={styles.content}>
