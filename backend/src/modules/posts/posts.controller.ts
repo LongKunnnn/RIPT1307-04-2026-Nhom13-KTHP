@@ -74,7 +74,7 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Get(':id/rate')
+  @Get(':id/my-rating')
   @ApiOperation({ summary: 'Xem mức đánh giá của chính mình cho bài viết này' })
   getMyRating(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUserPayload) {
     return this.postsService.getMyRating(id, user.id);

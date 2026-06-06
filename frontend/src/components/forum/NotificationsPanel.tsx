@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { List, Typography, Avatar, Button, Spin, Empty } from 'antd';
+import { List, Typography, Avatar, Button, Spin, Empty, notification } from 'antd';
 import { BellOutlined, CheckOutlined } from '@ant-design/icons';
 import { history } from 'umi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,12 +17,10 @@ export function NotificationsPanel() {
   useEffect(() => {
     if (!user?.id) return;
 
-    // 1. Gọi API lấy danh sách thông báo khi vừa mở lên
     const fetchNotifications = async () => {
       setLoading(true);
       try {
         const data = await notificationService.getMyNotifications();
-        // Sắp xếp lại cho chắc chắn mới nhất lên đầu (nếu BE chưa sort)
         setNotifications(data || []);
       } catch (error) {
         console.error('Lỗi khi tải thông báo:', error);
@@ -33,31 +31,48 @@ export function NotificationsPanel() {
 
     fetchNotifications();
 
-    // 2. Cắm ống Socket.io để nghe ngóng Real-time
-    // (Đổi cổng 3000 thành cổng Backend thực tế của sếp nếu cần)
     const socket: Socket = io('http://localhost:3000/notifications', {
       query: { userId: user.id },
-      transports: ['websocket'], // Ép dùng websocket cho mượt
+      transports: ['websocket'],
     });
 
-    socket.on('connect', () => {
-      console.log('⚡ Đã kết nối Socket Thông báo!');
-    });
+    const handleNewNotification = (newNoti: NotificationItem) => {
+      setNotifications((current) => {
+        if (current.some(n => n.id === newNoti.id)) return current;
+        return [newNoti, ...current];
+      });
 
-    socket.on('new_notification', (newNoti: NotificationItem) => {
-      // Có thông báo mới thì nhét nó lên đỉnh mảng
-      setNotifications((prev) => [newNoti, ...prev]);
-    });
+      notification.info({
+        message: newNoti.title || 'Thông báo mới',
+        description: newNoti.content,
+        duration: 3,
+        placement: 'bottomRight',
+        style: { cursor: 'pointer' },
+        onClick: async () => {
+          if (newNoti.link_path) {
+            history.push(newNoti.link_path);
+          }
+          try {
+            await notificationService.markAsRead(newNoti.id);
+            setNotifications((prev) =>
+              prev.map((n) => (n.id === newNoti.id ? { ...n, is_read: true } : n))
+            );
+          } catch (error) {
+            console.error('Lỗi khi đánh dấu đọc từ popup:', error);
+          }
+        },
+      });
+    };
+
+    socket.on('new_notification', handleNewNotification);
 
     return () => {
-      // Tắt component thì rút ống Socket ra cho đỡ nặng máy
+      socket.off('new_notification', handleNewNotification);
       socket.disconnect();
     };
   }, [user?.id]);
 
-  // Xử lý khi click vào 1 thông báo
   const handleItemClick = async (item: NotificationItem) => {
-    // Nếu chưa đọc thì đánh dấu đã đọc
     if (!item.is_read) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
@@ -68,13 +83,12 @@ export function NotificationsPanel() {
         console.error('Lỗi khi đánh dấu đọc:', error);
       }
     }
-    // Chuyển trang đến bài viết
+    
     if (item.link_path) {
       history.push(item.link_path);
     }
   };
 
-  // Đánh dấu đọc tất cả
   const markAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     try {
@@ -115,13 +129,11 @@ export function NotificationsPanel() {
             style={{
               padding: '16px 20px',
               cursor: 'pointer',
-              // Đổi màu nền nếu chưa đọc (xanh nhạt), đọc rồi thì trắng
               backgroundColor: item.is_read ? '#fff' : '#f0fdf4',
               borderBottom: '1px solid #f1f5f9',
               transition: 'background 0.2s',
             }}
             onClick={() => handleItemClick(item)}
-            className="hover:bg-gray-50" // Nếu sếp có dùng Tailwind
           >
             <List.Item.Meta
               avatar={
