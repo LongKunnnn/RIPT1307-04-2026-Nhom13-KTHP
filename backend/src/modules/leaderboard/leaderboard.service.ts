@@ -5,7 +5,11 @@ import { PrismaService } from '../prisma/prisma.service';
 export class LeaderboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getLeaderboard(scope: 'global' | 'tag' = 'global', tag?: string, limit: number = 10) {
+  async getLeaderboard(
+    scope: 'global' | 'tag' = 'global',
+    tag?: string,
+    limit: number = 10,
+  ) {
     // 1. Nếu lấy Top Global (Toàn cầu) -> Dùng đúng logic gốc của mày
     if (scope === 'global' || !tag) {
       return this.prisma.user.findMany({
@@ -20,6 +24,7 @@ export class LeaderboardService {
           avatar_url: true,
           faculty: true,
           reward_points: true,
+          role: true,
         },
       });
     }
@@ -50,6 +55,7 @@ export class LeaderboardService {
         avatar_url: true,
         faculty: true,
         reward_points: true,
+        role: true,
       },
     });
   }

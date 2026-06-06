@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { Link, history } from "umi";
-import {
-  Button,
-  Form,
-  Input,
-  Select,
-  Alert,
-  DatePicker,
-  Row,
-  Col
-} from "antd";
-import { GoogleOutlined, FacebookOutlined } from '@ant-design/icons';
+import { Button, Form, Input, Select, Alert, DatePicker, Row, Col } from "antd";
+import { GoogleOutlined, FacebookOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROUTES } from "@/constants/routes";
 import type { RegisterInput } from "@/types";
@@ -27,6 +18,7 @@ export default function RegisterPage() {
     try {
       const input: RegisterInput & { birthday?: string } = {
         ...values,
+        email: values.email.trim(),
         birthday: values.birthday?.format("YYYY-MM-DD"),
       };
       await register(input);
@@ -54,11 +46,17 @@ export default function RegisterPage() {
 
           <div className={styles.socialButtons} style={{ marginBottom: 24 }}>
             <button className={styles.socialBtn}>
-              <GoogleOutlined className={styles.icon} style={{ color: '#EA4335' }} />
+              <GoogleOutlined
+                className={styles.icon}
+                style={{ color: "#EA4335" }}
+              />
               Sign Up With Google
             </button>
             <button className={styles.socialBtn}>
-              <FacebookOutlined className={styles.icon} style={{ color: '#1877F2' }} />
+              <FacebookOutlined
+                className={styles.icon}
+                style={{ color: "#1877F2" }}
+              />
               Sign Up With Facebook
             </button>
           </div>
@@ -79,14 +77,14 @@ export default function RegisterPage() {
           <Form
             layout="vertical"
             onFinish={onFinish}
-            initialValues={{ role: "STUDENT" }}
+            initialValues={{ role: "student" }}
             size="large"
             requiredMark={false}
           >
             <Form.Item
               name="displayName"
               label={<span className={styles.formLabel}>Họ tên</span>}
-              rules={[{ required: true, message: 'Vui lòng nhập họ tên!' }]}
+              rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
               style={{ marginBottom: 16 }}
             >
               <Input placeholder="Full Name" />
@@ -97,7 +95,14 @@ export default function RegisterPage() {
                 <Form.Item
                   name="email"
                   label={<span className={styles.formLabel}>Email</span>}
-                  rules={[{ required: true, type: "email", message: 'Email không hợp lệ!' }]}
+                  rules={[
+                    {
+                      required: true,
+                      type: "email",
+                      message: "Email không hợp lệ!",
+                    },
+                  ]}
+                  normalize={(value) => value?.trim()}
                   style={{ marginBottom: 16 }}
                 >
                   <Input placeholder="Email Address" />
@@ -107,7 +112,13 @@ export default function RegisterPage() {
                 <Form.Item
                   name="password"
                   label={<span className={styles.formLabel}>Mật khẩu</span>}
-                  rules={[{ required: true, min: 6, message: 'Mật khẩu ít nhất 6 ký tự!' }]}
+                  rules={[
+                    {
+                      required: true,
+                      min: 6,
+                      message: "Mật khẩu ít nhất 6 ký tự!",
+                    },
+                  ]}
                   style={{ marginBottom: 16 }}
                 >
                   <Input.Password placeholder="Password" />
@@ -117,23 +128,23 @@ export default function RegisterPage() {
 
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item 
-                  name="role" 
-                  label={<span className={styles.formLabel}>Vai trò</span>} 
+                <Form.Item
+                  name="role"
+                  label={<span className={styles.formLabel}>Vai trò</span>}
                   rules={[{ required: true }]}
                   style={{ marginBottom: 16 }}
                 >
                   <Select
                     options={[
-                      { value: "STUDENT", label: "Sinh viên" },
-                      { value: "LECTURER", label: "Giảng viên" },
+                      { value: "student", label: "Sinh viên" },
+                      { value: "teacher", label: "Giảng viên" },
                     ]}
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item 
-                  name="birthday" 
+                <Form.Item
+                  name="birthday"
                   label={<span className={styles.formLabel}>Ngày sinh</span>}
                   style={{ marginBottom: 16 }}
                 >
@@ -146,8 +157,8 @@ export default function RegisterPage() {
               </Col>
             </Row>
 
-            <Form.Item 
-              name="faculty" 
+            <Form.Item
+              name="faculty"
               label={<span className={styles.formLabel}>Khoa / Đơn vị</span>}
               style={{ marginBottom: 20 }}
             >
@@ -155,7 +166,13 @@ export default function RegisterPage() {
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 0, marginTop: 10 }}>
-              <Button type="primary" htmlType="submit" block loading={loading} className={styles.submitBtn}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                loading={loading}
+                className={styles.submitBtn}
+              >
                 Sign Up
               </Button>
             </Form.Item>
