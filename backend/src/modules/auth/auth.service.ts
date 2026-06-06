@@ -1,4 +1,4 @@
-import { Prisma, UserRole, User } from '@prisma/client';
+import { ModerationStatus, Prisma, UserRole, User } from '@prisma/client';
 import { toBackendRole, toFrontendRole } from '../../common/utils/helpers';
 import {
   Injectable,
@@ -49,17 +49,30 @@ export class AuthService {
       ? (toBackendRole(dto.role) as UserRole)
       : UserRole.student;
 
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        username,
-        password_hash: hashedPassword,
-        full_name: dto.fullName || 'Thành viên mới',
-        birthday: dto.birthday ? new Date(dto.birthday) : null,
-        role,
-        faculty: dto.faculty,
+    const newUser = await this.prisma.$transaction(
+      async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email: dto.email,
+            username,
+            password_hash: hashedPassword,
+            full_name: dto.fullName || 'Thành viên mới',
+            birthday: dto.birthday ? new Date(dto.birthday) : null,
+            role,
+            faculty: dto.faculty,
+          },
+        });
+        // Save initial password to history
+        await tx.passwordHistory.create({
+          data: {
+            user_id: u.id,
+            password_hash: hashedPassword,
+          },
+        });
+        return u;
       },
-    });
+      { timeout: 30000 },
+    );
 
     const tokens = await this.generateTokens(
       newUser.id,
@@ -111,6 +124,79 @@ export class AuthService {
     });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
     return this.mapUser(user);
+  }
+
+  async searchUsersGlobal(query: string, currentUserId: number) {
+    const q = query?.trim();
+    if (!q) return [];
+
+    return this.prisma.user.findMany({
+      where: {
+        AND: [
+          { id: { not: currentUserId } },
+          { is_active: true },
+          {
+            OR: [
+              { username: { contains: q } },
+              { full_name: { contains: q } },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        full_name: true,
+        avatar_url: true,
+        role: true,
+        faculty: true,
+        bio: true,
+      },
+      take: 24,
+      orderBy: { full_name: 'asc' },
+    });
+  }
+
+  async getPublicPostsByUsername(
+    username: string,
+    page = 1,
+    pageSize = 10,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { username } });
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
+
+    const where = {
+      author_id: user.id,
+      deleted_at: null,
+      moderation_status: ModerationStatus.published,
+    };
+
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { post_tags: { include: { tag: true } } },
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+
+    return {
+      items: posts.map((p) => ({
+        id: String(p.id),
+        title: p.title,
+        excerpt: p.excerpt ?? p.content.slice(0, 200),
+        tags: p.post_tags.map((pt) => pt.tag.name),
+        answerCount: p.answer_count,
+        viewCount: p.view_count,
+        voteScore: p.vote_score,
+        createdAt: p.created_at.toISOString(),
+      })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto) {
@@ -269,7 +355,7 @@ export class AuthService {
       throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn.');
     }
 
-    // KIỂM TRA MẬT KHẨU MỚI KHÔNG TRÙNG MẬT KHẨU CŨ
+    // KIỂM TRA MẬT KHẨU MỚI KHÔNG TRÙNG VỚI MẬT KHẨU CŨ GẦN NHẤT
     const isSamePassword = await bcrypt.compare(
       dto.password,
       user.password_hash,
@@ -282,14 +368,27 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password_hash: hashedPassword,
-        reset_password_token: null,
-        reset_password_expires: null,
+    await this.prisma.$transaction(
+      async (tx) => {
+        // Save old password to history
+        await tx.passwordHistory.create({
+          data: {
+            user_id: user.id,
+            password_hash: user.password_hash,
+          },
+        });
+        // Update user's password
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            password_hash: hashedPassword,
+            reset_password_token: null,
+            reset_password_expires: null,
+          },
+        });
       },
-    });
+      { timeout: 30000 },
+    );
 
     return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' };
   }

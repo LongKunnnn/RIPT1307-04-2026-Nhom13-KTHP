@@ -2,14 +2,18 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { ModerationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toFrontendRole, AuthUserPayload } from '../../common/utils/helpers';
-import { scanContent, sumVoteScore } from '../../common/utils/content-moderation';
+import { scanContent } from '../../common/utils/content-moderation';
 import { CreateCommentDto, UpdateCommentDto } from './dto/comments.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CommentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notiService: NotificationsService,
+  ) { }
 
-  private async mapComment(c: any) {
+  private mapComment(c: any) {
     const matchedWords = Array.isArray(c.matched_words) ? (c.matched_words as string[]) : undefined;
 
     return {
@@ -18,11 +22,11 @@ export class CommentsService {
       parentId: c.parent_id ? String(c.parent_id) : null,
       body: c.content,
       authorId: String(c.author_id),
-      authorName: c.author.full_name,
-      authorUsername: c.author.username,
-      authorRole: toFrontendRole(c.author.role),
+      authorName: c.author?.full_name || 'Người dùng ẩn danh',
+      authorUsername: c.author?.username || 'unknown',
+      authorRole: toFrontendRole(c.author?.role),
       createdAt: c.created_at.toISOString(),
-      voteScore: await sumVoteScore(this.prisma, c.id, 'comment'),
+      voteScore: c.vote_score,
       isAccepted: c.is_accepted,
       moderationStatus: c.moderation_status,
       moderationFlags: matchedWords?.length ? matchedWords : undefined,
@@ -30,7 +34,6 @@ export class CommentsService {
     };
   }
 
-  // LẤY DANH SÁCH & RÁP CÂY (Giữ nguyên của FE)
   async listByPost(postId: number, includeNonPublic = false) {
     const post = await this.prisma.post.findFirst({ where: { id: postId, deleted_at: null } });
     if (!post) throw new NotFoundException('Không tìm thấy bài viết');
@@ -44,11 +47,11 @@ export class CommentsService {
       orderBy: { created_at: 'asc' },
     });
 
-    const mapped = await Promise.all(comments.map((c) => this.mapComment(c)));
+    const mapped = comments.map((c) => this.mapComment(c));
     return this.buildTree(mapped);
   }
 
-  private buildTree(comments: Awaited<ReturnType<CommentsService['mapComment']>>[]) {
+  private buildTree(comments: ReturnType<CommentsService['mapComment']>[]) {
     type Node = (typeof comments)[0] & { children: Node[] };
     const map = new Map<string, Node>();
     const roots: Node[] = [];
@@ -58,28 +61,26 @@ export class CommentsService {
       if (node.parentId && map.has(node.parentId)) map.get(node.parentId)!.children.push(node);
       else if (!node.parentId) roots.push(node);
     });
-
     return roots;
   }
 
-  // TẠO MỚI (Mix kiểm duyệt của FE + Logic Reply 2 cấp của BE)
   async add(postId: number, dto: CreateCommentDto, user: AuthUserPayload) {
-    const post = await this.prisma.post.findFirst({ where: { id: postId, deleted_at: null } });
-    if (!post) throw new NotFoundException('Bài viết này không tồn tại hoặc đã bị bay màu!');
+    const post = await this.prisma.post.findFirst({
+      where: { id: postId, deleted_at: null },
+      select: { id: true, author_id: true, title: true }
+    });
+    if (!post) throw new NotFoundException('Bài viết không tồn tại');
 
     let finalParentId = dto.parentId ?? null;
+    let targetAuthorId: number | null = null;
 
-    // 🟢 Logic của Lead: Ép Reply về tối đa 2 cấp
     if (finalParentId) {
-      const parentComment = await this.prisma.comment.findFirst({
-        where: { id: finalParentId, post_id: postId, deleted_at: null },
+      const parent = await this.prisma.comment.findFirst({
+        where: { id: finalParentId, post_id: postId, deleted_at: null, moderation_status: ModerationStatus.published },
       });
-      if (!parentComment) throw new NotFoundException('Bình luận cha không tồn tại!');
-      
-      // Nếu thằng cha lại có cha nữa -> Bắt nó bám vào root cha để không bị thò thụt sâu vô hạn
-      if (parentComment.parent_id !== null) {
-        finalParentId = parentComment.parent_id;
-      }
+      if (!parent) throw new NotFoundException('Bình luận cha không tồn tại');
+      targetAuthorId = parent.author_id;
+      if (parent.parent_id !== null) finalParentId = parent.parent_id;
     }
 
     const text = dto.body.trim();
@@ -103,66 +104,99 @@ export class CommentsService {
 
     const scan = await scanContent(this.prisma, text);
 
-    const comment = await this.prisma.comment.create({
-      data: {
-        post_id: postId,
-        author_id: user.id,
-        parent_id: finalParentId,
-        content: text,
-        moderation_status: scan.status,
-        matched_words: scan.matchedWords.length ? scan.matchedWords : undefined,
-      },
-      include: { author: true },
+    const comment = await this.prisma.$transaction(async (tx) => {
+      const c = await tx.comment.create({
+        data: {
+          post_id: postId,
+          author_id: user.id,
+          parent_id: finalParentId,
+          content: dto.body.trim(),
+          moderation_status: scan.status,
+          matched_words: scan.matchedWords.length ? scan.matchedWords : [],
+        },
+        include: { author: true },
+      });
+
+      if (!finalParentId && scan.status === ModerationStatus.published) {
+        await tx.post.update({ where: { id: postId }, data: { answer_count: { increment: 1 } } });
+      }
+      return c;
     });
 
-    // Cộng lượt trả lời cho bài viết nếu là cmt gốc
-    if (!finalParentId && scan.status === ModerationStatus.published) {
-      await this.prisma.post.update({ where: { id: postId }, data: { answer_count: { increment: 1 } } });
+    if (scan.status === ModerationStatus.published) {
+      if (targetAuthorId && targetAuthorId !== user.id) {
+        await this.notiService.createNotification({
+          userId: targetAuthorId,
+          senderId: user.id,
+          postId: postId,
+          commentId: comment.id,
+          type: 'reply' as any,
+          title: 'Có người trả lời bình luận',
+          content: `${comment.author.full_name} vừa trả lời bình luận của bạn.`,
+          linkPath: `/questions/${postId}#comment-${comment.id}`,
+        });
+      } else if (!finalParentId && post.author_id !== user.id) {
+        await this.notiService.createNotification({
+          userId: post.author_id,
+          senderId: user.id,
+          postId: postId,
+          commentId: comment.id,
+          type: 'comment' as any,
+          title: 'Bình luận mới',
+          content: `${comment.author.full_name} vừa bình luận bài viết "${post.title}".`,
+          linkPath: `/questions/${postId}#comment-${comment.id}`,
+        });
+      }
     }
-
     return this.mapComment(comment);
   }
 
-  // SỬA BÌNH LUẬN (Của BE)
   async update(commentId: number, userId: number, dto: UpdateCommentDto) {
     const comment = await this.prisma.comment.findFirst({
       where: { id: commentId, deleted_at: null }, include: { author: true }
     });
-
     if (!comment) throw new NotFoundException('Không tìm thấy bình luận!');
-    if (comment.author_id !== userId) throw new ForbiddenException('Chỉ chính chủ mới được phép sửa bình luận này!');
+    if (comment.author_id !== userId) throw new ForbiddenException('Không có quyền sửa!');
 
-    const text = dto.body.trim();
-    const scan = await scanContent(this.prisma, text); // Quét lại từ ngữ vi phạm khi sửa
+    const oldStatus = comment.moderation_status;
+    const scan = await scanContent(this.prisma, dto.body.trim());
+    const newStatus = scan.status;
 
-    const updated = await this.prisma.comment.update({
-      where: { id: commentId },
-      data: { 
-        content: text,
-        moderation_status: scan.status,
-        matched_words: scan.matchedWords.length ? scan.matchedWords : undefined,
-      },
-      include: { author: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const c = await tx.comment.update({
+        where: { id: commentId },
+        data: {
+          content: dto.body.trim(),
+          moderation_status: newStatus,
+          matched_words: scan.matchedWords.length ? scan.matchedWords : [],
+        },
+        include: { author: true },
+      });
+
+      if (!comment.parent_id) {
+        if (oldStatus === ModerationStatus.published && newStatus !== ModerationStatus.published) {
+          await tx.post.update({ where: { id: comment.post_id }, data: { answer_count: { decrement: 1 } } });
+        } else if (oldStatus !== ModerationStatus.published && newStatus === ModerationStatus.published) {
+          await tx.post.update({ where: { id: comment.post_id }, data: { answer_count: { increment: 1 } } });
+        }
+      }
+      return c;
     });
 
     return this.mapComment(updated);
   }
 
-  // XÓA BÌNH LUẬN (Của BE)
   async remove(commentId: number, userId: number, userRole: string) {
     const comment = await this.prisma.comment.findFirst({ where: { id: commentId, deleted_at: null } });
     if (!comment) throw new NotFoundException('Bình luận không tồn tại!');
-    if (comment.author_id !== userId && userRole !== 'admin') {
-      throw new ForbiddenException('Bạn không có quyền xóa bình luận này!');
-    }
+    if (comment.author_id !== userId && userRole !== 'admin') throw new ForbiddenException('Không có quyền xóa!');
 
-    await this.prisma.comment.update({ where: { id: commentId }, data: { deleted_at: new Date() } });
-
-    // Trừ lượt trả lời của bài viết nếu xóa cmt gốc
-    if (!comment.parent_id && comment.moderation_status === ModerationStatus.published) {
-      await this.prisma.post.update({ where: { id: comment.post_id }, data: { answer_count: { decrement: 1 } } });
-    }
-
+    await this.prisma.$transaction(async (tx) => {
+      await tx.comment.update({ where: { id: commentId }, data: { deleted_at: new Date() } });
+      if (!comment.parent_id && comment.moderation_status === ModerationStatus.published) {
+        await tx.post.update({ where: { id: comment.post_id }, data: { answer_count: { decrement: 1 } } });
+      }
+    });
     return { success: true };
   }
 }
