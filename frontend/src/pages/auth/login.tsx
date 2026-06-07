@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, history } from "umi";
 import { Button, Form, Input, Typography, Alert, message } from "antd";
-import { GoogleOutlined, FacebookOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROUTES } from "@/constants/routes";
 import { ApiError, getApiErrorMessage } from "@/services/api/client";
@@ -52,35 +51,13 @@ export default function LoginPage() {
   return (
     <div className={styles.wrap}>
       <div className={styles.splitContainer}>
-        <div className={styles.leftPane}>
-        </div>
+        <div className={styles.leftPane}></div>
         <div className={styles.rightPane}>
           <div className={styles.header} style={{ marginBottom: 30 }}>
             <h1 className={styles.title}>Welcome Back</h1>
             <div className={styles.switchPageWrapper}>
               Don't have an account? <Link to={ROUTES.register}>Sign Up</Link>
             </div>
-          </div>
-
-          <div className={styles.socialButtons} style={{ marginBottom: 24 }}>
-            <button className={styles.socialBtn}>
-              <GoogleOutlined
-                className={styles.icon}
-                style={{ color: "#EA4335" }}
-              />
-              Sign In With Google
-            </button>
-            <button className={styles.socialBtn}>
-              <FacebookOutlined
-                className={styles.icon}
-                style={{ color: "#1877F2" }}
-              />
-              Sign In With Facebook
-            </button>
-          </div>
-
-          <div className={styles.divider} style={{ marginBottom: 24 }}>
-            <span>Or sign in with email</span>
           </div>
 
           {error && (
@@ -95,9 +72,9 @@ export default function LoginPage() {
             />
           )}
 
-          <Form 
-            form={form} 
-            layout="vertical" 
+          <Form
+            form={form}
+            layout="vertical"
             onFinish={onFinish}
             size="large"
             requiredMark={false}
@@ -105,13 +82,19 @@ export default function LoginPage() {
             <Form.Item
               name="email"
               label={<span className={styles.formLabel}>Email</span>}
-              rules={[{ required: true, type: "email", message: "Vui lòng nhập email!" }]}
+              rules={[
+                {
+                  required: true,
+                  type: "email",
+                  message: "Vui lòng nhập email!",
+                },
+              ]}
               normalize={(value) => value?.trim()}
               style={{ marginBottom: 16 }}
             >
               <Input placeholder="Email Address" />
             </Form.Item>
-            
+
             <Form.Item
               name="password"
               label={<span className={styles.formLabel}>Mật khẩu</span>}
@@ -120,18 +103,21 @@ export default function LoginPage() {
             >
               <Input.Password placeholder="Password" />
             </Form.Item>
-            
+
             <div style={{ marginBottom: 24, textAlign: "right" }}>
-              <Link to={ROUTES.forgotPassword} style={{ fontSize: 14, color: "#1a1a2e", fontWeight: 500 }}>
+              <Link
+                to={ROUTES.forgotPassword}
+                style={{ fontSize: 14, color: "#1a1a2e", fontWeight: 500 }}
+              >
                 Quên mật khẩu?
               </Link>
             </div>
 
             <Form.Item style={{ marginBottom: 0 }}>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                block 
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
                 loading={loading}
                 className={styles.submitBtn}
               >
@@ -139,10 +125,10 @@ export default function LoginPage() {
               </Button>
             </Form.Item>
           </Form>
-          
+
           <Typography.Paragraph className={styles.hint}>
-            Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn —
-            mật khẩu <strong>{DEMO_PASSWORD}</strong>
+            Demo: admin@svforum.vn / giangvien@svforum.vn / sinhvien@svforum.vn
+            — mật khẩu <strong>{DEMO_PASSWORD}</strong>
           </Typography.Paragraph>
         </div>
       </div>

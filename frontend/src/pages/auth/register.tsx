@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, history } from "umi";
 import { Button, Form, Input, Select, Alert, DatePicker, Row, Col } from "antd";
-import { GoogleOutlined, FacebookOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROUTES } from "@/constants/routes";
 import type { RegisterInput } from "@/types";
@@ -33,35 +32,13 @@ export default function RegisterPage() {
   return (
     <div className={styles.wrap}>
       <div className={styles.splitContainer}>
-        <div className={styles.leftPane}>
-        </div>
+        <div className={styles.leftPane}></div>
         <div className={styles.rightPane}>
           <div className={styles.header} style={{ marginBottom: 30 }}>
             <h1 className={styles.title}>Create Account</h1>
             <div className={styles.switchPageWrapper}>
               Already have an account? <Link to={ROUTES.login}>Sign In</Link>
             </div>
-          </div>
-
-          <div className={styles.socialButtons} style={{ marginBottom: 24 }}>
-            <button className={styles.socialBtn}>
-              <GoogleOutlined
-                className={styles.icon}
-                style={{ color: "#EA4335" }}
-              />
-              Sign Up With Google
-            </button>
-            <button className={styles.socialBtn}>
-              <FacebookOutlined
-                className={styles.icon}
-                style={{ color: "#1877F2" }}
-              />
-              Sign Up With Facebook
-            </button>
-          </div>
-
-          <div className={styles.divider} style={{ marginBottom: 24 }}>
-            <span>Or sign up with email</span>
           </div>
 
           {error && (
