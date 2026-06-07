@@ -12,6 +12,16 @@ interface Props {
   onChange?: (score: number) => void;
 }
 
+function nextMine(mine: 1 | -1 | 0, value: 1 | -1): 1 | -1 | 0 {
+  return mine === value ? 0 : value;
+}
+
+function scoreDelta(mine: 1 | -1 | 0, value: 1 | -1): number {
+  if (mine === value) return -value;
+  if (mine === 0) return value;
+  return value - mine;
+}
+
 export function VoteButtons({ targetType, targetId, score, onChange }: Props) {
   const { user, isAuthenticated } = useAuth();
   const [current, setCurrent] = useState(score);
@@ -32,13 +42,24 @@ export function VoteButtons({ targetType, targetId, score, onChange }: Props) {
 
   const vote = async (value: 1 | -1) => {
     if (!isAuthenticated || !user || voting) return;
+
+    const prevMine = mine;
+    const prevCurrent = current;
+    const optimisticScore = current + scoreDelta(mine, value);
+
     setVoting(true);
+    setMine(nextMine(mine, value));
+    setCurrent(optimisticScore);
+    onChange?.(optimisticScore);
+
     try {
       const next = await voteService.vote(targetType, targetId, user.id, value);
       setCurrent(next);
-      const m = await voteService.getUserVote(targetType, targetId, user.id);
-      setMine(m);
       onChange?.(next);
+    } catch {
+      setMine(prevMine);
+      setCurrent(prevCurrent);
+      onChange?.(prevCurrent);
     } finally {
       setVoting(false);
     }

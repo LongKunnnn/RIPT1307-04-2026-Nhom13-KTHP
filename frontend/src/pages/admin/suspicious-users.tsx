@@ -58,8 +58,8 @@ export default function SuspiciousUsers() {
     },
     {
       title: 'Tần Suất Bơm',
-      dataIndex: 'vote_count',
-      key: 'vote_count',
+      dataIndex: 'pair_count',
+      key: 'pair_count',
       align: 'center' as const,
       render: (count: number) => (
         <Tag color="error" style={{ fontSize: '14px', padding: '4px 8px', fontWeight: 600 }}>
